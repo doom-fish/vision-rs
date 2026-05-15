@@ -12,16 +12,13 @@ use crate::ffi;
 /// `Accurate` does layout analysis and is significantly slower.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[non_exhaustive]
+#[derive(Default)]
 pub enum RecognitionLevel {
     Fast,
+    #[default]
     Accurate,
 }
 
-impl Default for RecognitionLevel {
-    fn default() -> Self {
-        Self::Accurate
-    }
-}
 
 impl RecognitionLevel {
     const fn as_raw(self) -> i32 {
@@ -105,7 +102,7 @@ impl TextRecognizer {
     }
 
     /// Recognise text in the image at `path`. Supports any format
-    /// CoreGraphics' ImageIO can read (PNG, JPEG, HEIC, TIFF, ...).
+    /// CoreGraphics' `ImageIO` can read (PNG, JPEG, HEIC, TIFF, ...).
     ///
     /// Returns observations in Vision's natural ordering (top-down,
     /// left-to-right after layout analysis).
@@ -179,7 +176,7 @@ impl TextRecognizer {
     /// Recognise text in a [`CVPixelBuffer`](apple_cf::cv::CVPixelBuffer)
     /// directly, without a PNG round-trip. This is the zero-copy path for
     /// live capture pipelines (screencapturekit / videotoolbox decoder /
-    /// AVCaptureSession).
+    /// `AVCaptureSession`).
     ///
     /// # Errors
     ///

@@ -88,6 +88,7 @@ impl FaceDetector {
         Self::collect(out_array, out_count)
     }
 
+    #[allow(clippy::unnecessary_wraps)]
     fn collect(
         out_array: *mut core::ffi::c_void,
         out_count: usize,

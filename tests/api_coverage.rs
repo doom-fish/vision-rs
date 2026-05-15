@@ -10,9 +10,9 @@
 //! (`sdk_root` → `read_header` → `extract_member_surface` → `report`):
 //!
 //! * **Header-based, C function regex**: `apple-cf` + `videotoolbox` (pure
-//!   C frameworks — IOSurface, CoreMedia, CoreVideo, VideoToolbox).
+//!   C frameworks — `IOSurface`, `CoreMedia`, `CoreVideo`, `VideoToolbox`).
 //! * **Header-based, Obj-C `@interface`**: `apple-vision` + `speech` +
-//!   `avassetwriter` (Obj-C frameworks — Vision, Speech, AVFoundation).
+//!   `avassetwriter` (Obj-C frameworks — Vision, Speech, `AVFoundation`).
 //! * **Swift textual-interface only**: `foundation-models` (Swift-only
 //!   framework with no Obj-C headers).
 //!
