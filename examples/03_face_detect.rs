@@ -6,8 +6,8 @@
 //! With a custom image: `cargo run --example 03_face_detect -- /tmp/portrait.jpg`
 
 use std::path::PathBuf;
-use vision::detect_faces::FaceDetector;
-use vision::recognize_text::_test_helper_render_text_png;
+use apple_vision::detect_faces::FaceDetector;
+use apple_vision::recognize_text::_test_helper_render_text_png;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let path: PathBuf = std::env::args().nth(1).map_or_else(

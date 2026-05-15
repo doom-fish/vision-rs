@@ -1,5 +1,5 @@
 [package]
-name = "vision"
+name = "apple-vision"
 version = "0.3.0"
 edition = "2021"
 license = "MIT OR Apache-2.0"
@@ -31,7 +31,7 @@ nursery = { level = "warn", priority = -1 }
 cargo = { level = "warn", priority = -1 }
 
 [lib]
-name = "vision"
+name = "apple_vision"
 crate-type = ["lib"]
 
 [features]
@@ -42,7 +42,7 @@ recognize_text = []
 detect_faces = []
 
 [dependencies]
-apple-cf = { path = "../apple-cf-rs", default-features = false, features = ["cv", "iosurface"] }
+apple-cf = { path = "../apple-cf-rs", version = "0.1", default-features = false, features = ["cv", "iosurface"] }
 
 [dev-dependencies]
 regex-lite = "0.1"

@@ -9,8 +9,8 @@
 
 use apple_cf::cv::CVPixelBuffer;
 use apple_cf::iosurface::{IOSurface, IOSurfaceLockOptions};
-use vision::prelude::*;
-use vision::recognize_text::_test_helper_render_text_png;
+use apple_vision::prelude::*;
+use apple_vision::recognize_text::_test_helper_render_text_png;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let png_path = "/tmp/vision_pixbuf_smoke.png";

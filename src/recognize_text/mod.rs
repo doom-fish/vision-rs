@@ -56,7 +56,7 @@ pub struct RecognizedText {
 /// # Examples
 ///
 /// ```rust,no_run
-/// use vision::recognize_text::{TextRecognizer, RecognitionLevel};
+/// use apple_vision::recognize_text::{TextRecognizer, RecognitionLevel};
 ///
 /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
 /// let recognizer = TextRecognizer::new()
