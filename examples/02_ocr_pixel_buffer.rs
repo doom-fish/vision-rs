@@ -1,7 +1,7 @@
-//! Smoke test: OCR a CVPixelBuffer directly, no PNG round-trip.
+//! Smoke test: OCR a `CVPixelBuffer` directly, no PNG round-trip.
 //!
 //! Renders 'ZERO COPY OCR' into a PNG (test helper), loads it as a
-//! CVPixelBuffer via apple-cf::cv, then runs Vision OCR on the
+//! `CVPixelBuffer` via `apple-cf::cv`, then runs Vision OCR on the
 //! pixel-buffer-typed input (zero allocation between Vision and the
 //! pixel data).
 //!
