@@ -28,6 +28,15 @@ extern "C" {
         out_error_message: *mut *mut c_char,
     ) -> i32;
 
+    pub fn vn_recognize_text_in_pixel_buffer(
+        pixel_buffer: *mut c_void,
+        recognition_level: i32,
+        uses_language_correction: bool,
+        out_array: *mut *mut c_void,
+        out_count: *mut usize,
+        out_error_message: *mut *mut c_char,
+    ) -> i32;
+
     pub fn vn_recognized_text_free(array: *mut c_void, count: usize);
 
     pub fn vn_test_helper_render_text_png(

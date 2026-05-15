@@ -2,6 +2,22 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.2.0] - Unreleased
+
+### Added (BREAKING — adds dependency)
+
+- **`apple-cf` as a dependency** (with `cv` + `iosurface` features) so the
+  bridge can speak `CVPixelBuffer` directly.
+- `TextRecognizer::recognize_in_pixel_buffer(&CVPixelBuffer)` — zero-copy
+  OCR path for live capture pipelines (screencapturekit / videotoolbox
+  decoder / AVCaptureSession). No PNG round-trip, no bytes copied between
+  Vision and the pixel data.
+- `vn_recognize_text_in_pixel_buffer` `@_cdecl` export driving
+  `VNImageRequestHandler(cvPixelBuffer:)`.
+- Smoke test `02_ocr_pixel_buffer` runs OCR through both the file and
+  pixel-buffer paths against the same render, proving Vision accepts a
+  CVPixelBuffer end-to-end.
+
 ## [0.1.0] - Initial release
 
 ### Added

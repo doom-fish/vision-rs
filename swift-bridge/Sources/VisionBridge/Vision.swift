@@ -69,18 +69,11 @@ private func loadCGImage(path: String) -> CGImage? {
     return image
 }
 
-// MARK: - Public OCR entry point
+// MARK: - Public OCR entry point (file path)
 
 /// Run text recognition on the image at `path` and write the observations
 /// into a heap-allocated array. The Rust caller takes ownership of the
-/// returned pointer and frees it via `vn_recognized_text_free` (which
-/// also frees each observation's `text` string).
-///
-/// `recognitionLevel` is 0 (.fast) or 1 (.accurate).
-/// `usesLanguageCorrection` toggles VNRecognizeTextRequest.usesLanguageCorrection.
-///
-/// On error: returns a negative status code via the return value, NULL out
-/// pointer, and (optionally) an error message via `outErrorMessage`.
+/// returned pointer and frees it via `vn_recognized_text_free`.
 @_cdecl("vn_recognize_text_in_path")
 public func vn_recognize_text_in_path(
     _ path: UnsafePointer<CChar>,
@@ -97,13 +90,58 @@ public func vn_recognize_text_in_path(
         outCount.pointee = 0
         return VN_IMAGE_LOAD_FAILED
     }
+    let handler = VNImageRequestHandler(cgImage: cgImage, options: [:])
+    return runOCR(
+        handler: handler,
+        recognitionLevel: recognitionLevel,
+        usesLanguageCorrection: usesLanguageCorrection,
+        outArray: outArray,
+        outCount: outCount,
+        outErrorMessage: outErrorMessage
+    )
+}
 
+// MARK: - Public OCR entry point (CVPixelBuffer)
+
+/// Run text recognition on a CVPixelBuffer. `pixelBufferPtr` is a raw
+/// CVPixelBufferRef obtained from apple_cf::cv::CVPixelBuffer::as_ptr(),
+/// from a videotoolbox decoder, screencapturekit, or any other capture
+/// source. No bytes are copied; Vision reads the buffer in place.
+@_cdecl("vn_recognize_text_in_pixel_buffer")
+public func vn_recognize_text_in_pixel_buffer(
+    _ pixelBufferPtr: UnsafeMutableRawPointer,
+    _ recognitionLevel: Int32,
+    _ usesLanguageCorrection: Bool,
+    _ outArray: UnsafeMutablePointer<UnsafeMutableRawPointer?>,
+    _ outCount: UnsafeMutablePointer<Int>,
+    _ outErrorMessage: UnsafeMutablePointer<UnsafeMutablePointer<CChar>?>?
+) -> Int32 {
+    let pixelBuffer = Unmanaged<CVPixelBuffer>.fromOpaque(pixelBufferPtr).takeUnretainedValue()
+    let handler = VNImageRequestHandler(cvPixelBuffer: pixelBuffer, options: [:])
+    return runOCR(
+        handler: handler,
+        recognitionLevel: recognitionLevel,
+        usesLanguageCorrection: usesLanguageCorrection,
+        outArray: outArray,
+        outCount: outCount,
+        outErrorMessage: outErrorMessage
+    )
+}
+
+/// Shared OCR driver — runs the request and packs results.
+private func runOCR(
+    handler: VNImageRequestHandler,
+    recognitionLevel: Int32,
+    usesLanguageCorrection: Bool,
+    outArray: UnsafeMutablePointer<UnsafeMutableRawPointer?>,
+    outCount: UnsafeMutablePointer<Int>,
+    outErrorMessage: UnsafeMutablePointer<UnsafeMutablePointer<CChar>?>?
+) -> Int32 {
     let request = VNRecognizeTextRequest()
     request.recognitionLevel =
         recognitionLevel == 1 ? .accurate : .fast
     request.usesLanguageCorrection = usesLanguageCorrection
 
-    let handler = VNImageRequestHandler(cgImage: cgImage, options: [:])
     do {
         try handler.perform([request])
     } catch {
@@ -121,8 +159,6 @@ public func vn_recognize_text_in_path(
         return VN_OK
     }
 
-    // Allocate a typed buffer, fill it, then erase the type to a raw pointer
-    // for the FFI return. Rust knows the @frozen layout and casts back.
     let count = results.count
     let buffer = UnsafeMutablePointer<VNRecognizedTextRaw>.allocate(capacity: count)
     for (i, observation) in results.enumerated() {

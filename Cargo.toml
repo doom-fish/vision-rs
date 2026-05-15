@@ -1,6 +1,6 @@
 [package]
 name = "vision"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
 license = "MIT OR Apache-2.0"
 homepage = "https://github.com/doom-fish/vision-rs"
@@ -42,6 +42,7 @@ default = ["recognize_text"]
 recognize_text = []
 
 [dependencies]
+apple-cf = { path = "../apple-cf-rs", default-features = false, features = ["cv", "iosurface"] }
 
 [dev-dependencies]
 regex-lite = "0.1"
@@ -57,6 +58,10 @@ maintenance = { status = "actively-developed" }
 
 [[example]]
 name = "01_ocr_smoke"
+required-features = ["recognize_text"]
+
+[[example]]
+name = "02_ocr_pixel_buffer"
 required-features = ["recognize_text"]
 
 [profile.release]

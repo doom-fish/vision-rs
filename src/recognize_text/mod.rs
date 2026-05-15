@@ -175,6 +175,66 @@ impl TextRecognizer {
         unsafe { ffi::vn_recognized_text_free(out_array, out_count) };
         Ok(results)
     }
+
+    /// Recognise text in a [`CVPixelBuffer`](apple_cf::cv::CVPixelBuffer)
+    /// directly, without a PNG round-trip. This is the zero-copy path for
+    /// live capture pipelines (screencapturekit / videotoolbox decoder /
+    /// AVCaptureSession).
+    ///
+    /// # Errors
+    ///
+    /// Returns [`VisionError::RequestFailed`] if Vision rejects the buffer
+    /// (e.g. unsupported pixel format).
+    pub fn recognize_in_pixel_buffer(
+        &self,
+        pixel_buffer: &apple_cf::cv::CVPixelBuffer,
+    ) -> Result<Vec<RecognizedText>, VisionError> {
+        let mut out_array: *mut core::ffi::c_void = ptr::null_mut();
+        let mut out_count: usize = 0;
+        let mut err_msg: *mut c_char = ptr::null_mut();
+        let status = unsafe {
+            ffi::vn_recognize_text_in_pixel_buffer(
+                pixel_buffer.as_ptr(),
+                self.recognition_level.as_raw(),
+                self.uses_language_correction,
+                &mut out_array,
+                &mut out_count,
+                &mut err_msg,
+            )
+        };
+        if status != ffi::status::OK {
+            return Err(unsafe { from_swift(status, err_msg) });
+        }
+        if out_array.is_null() || out_count == 0 {
+            return Ok(Vec::new());
+        }
+
+        let typed_array = out_array.cast::<ffi::RecognizedTextRaw>();
+        let mut results = Vec::with_capacity(out_count);
+        for i in 0..out_count {
+            let raw = unsafe { &*typed_array.add(i) };
+            let text = if raw.text.is_null() {
+                String::new()
+            } else {
+                unsafe { core::ffi::CStr::from_ptr(raw.text) }
+                    .to_string_lossy()
+                    .into_owned()
+            };
+            results.push(RecognizedText {
+                text,
+                confidence: raw.confidence,
+                bounding_box: BoundingBox {
+                    x: raw.bbox_x,
+                    y: raw.bbox_y,
+                    width: raw.bbox_w,
+                    height: raw.bbox_h,
+                },
+            });
+        }
+
+        unsafe { ffi::vn_recognized_text_free(out_array, out_count) };
+        Ok(results)
+    }
 }
 
 #[doc(hidden)]
