@@ -1,6 +1,6 @@
 [package]
 name = "vision"
-version = "0.2.0"
+version = "0.3.0"
 edition = "2021"
 license = "MIT OR Apache-2.0"
 homepage = "https://github.com/doom-fish/vision-rs"
@@ -35,11 +35,11 @@ name = "vision"
 crate-type = ["lib"]
 
 [features]
-default = ["recognize_text"]
+default = ["recognize_text", "detect_faces"]
 
-# Per-request-type feature flags. Future: detect_faces, detect_rectangles,
-# classify_image, detect_barcodes.
+# Per-request-type feature flags.
 recognize_text = []
+detect_faces = []
 
 [dependencies]
 apple-cf = { path = "../apple-cf-rs", default-features = false, features = ["cv", "iosurface"] }
@@ -63,6 +63,10 @@ required-features = ["recognize_text"]
 [[example]]
 name = "02_ocr_pixel_buffer"
 required-features = ["recognize_text"]
+
+[[example]]
+name = "03_face_detect"
+required-features = ["detect_faces", "recognize_text"]
 
 [profile.release]
 debug = "full"

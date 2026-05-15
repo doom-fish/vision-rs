@@ -21,13 +21,22 @@ pub mod ffi;
 #[cfg_attr(docsrs, doc(cfg(feature = "recognize_text")))]
 pub mod recognize_text;
 
+#[cfg(feature = "detect_faces")]
+#[cfg_attr(docsrs, doc(cfg(feature = "detect_faces")))]
+pub mod detect_faces;
+
 pub use error::VisionError;
 
 #[cfg(feature = "recognize_text")]
 pub use recognize_text::{BoundingBox, RecognitionLevel, RecognizedText, TextRecognizer};
 
+#[cfg(feature = "detect_faces")]
+pub use detect_faces::{DetectedFace, FaceDetector};
+
 /// Common imports.
 pub mod prelude {
+    #[cfg(feature = "detect_faces")]
+    pub use crate::detect_faces::{DetectedFace, FaceDetector};
     pub use crate::error::VisionError;
     #[cfg(feature = "recognize_text")]
     pub use crate::recognize_text::{

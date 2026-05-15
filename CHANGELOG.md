@@ -2,6 +2,21 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.3.0] - Unreleased
+
+### Added
+
+- **Face detection** — `FaceDetector` wraps `VNDetectFaceRectanglesRequest`.
+  Both `detect_in_path(&Path)` and `detect_in_pixel_buffer(&CVPixelBuffer)`
+  are supported. `DetectedFace` carries bounding box, confidence, and
+  `Option<f32>` roll/yaw/pitch (optionals reflect older request revisions
+  that don't report all three angles).
+- `detect_faces` feature flag (on by default).
+- Smoke test `03_face_detect` runs on a blank image (asserting 0 faces) and
+  optionally on a user-supplied image path.
+- API harness extended to `VNDetectFaceRectanglesRequest` and
+  `VNFaceObservation` — 6/6 tests at 100% coverable.
+
 ## [0.2.0] - Unreleased
 
 ### Added (BREAKING — adds dependency)

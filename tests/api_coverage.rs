@@ -170,6 +170,58 @@ fn vn_recognize_text_request_coverage() {
 }
 
 #[test]
+fn vn_detect_face_rectangles_request_coverage() {
+    let si = read_swiftinterface();
+    let apple = extract_type_surface(&si, "VNDetectFaceRectanglesRequest");
+    let referenced = references_in_bridge(&apple);
+    let omitted: BTreeSet<String> = [
+        "init",
+        "results",
+        "revision",
+        "currentRevision",
+        "defaultRevision",
+        "supportedRevisions",
+        "Configuration",
+        "ResultsStream",
+    ]
+    .into_iter()
+    .map(String::from)
+    .collect();
+    report(
+        "VNDetectFaceRectanglesRequest",
+        &apple,
+        &referenced,
+        &omitted,
+    );
+}
+
+#[test]
+fn vn_face_observation_coverage() {
+    let si = read_swiftinterface();
+    let apple = extract_type_surface(&si, "VNFaceObservation");
+    let referenced = references_in_bridge(&apple);
+    // We only consume bbox + confidence + roll/yaw/pitch from
+    // VNFaceObservation (which inherits boundingBox/confidence from
+    // VNDetectedObjectObservation). Landmarks, face capture quality,
+    // chin/eye/lip/nose region accessors, faceObservationWith* — all v0.4+.
+    let omitted: BTreeSet<String> = [
+        "init",
+        "currentRevision",
+        "defaultRevision",
+        "supportedRevisions",
+        "landmarks",
+        "faceCaptureQuality",
+        "Snapshot",
+        "PartiallyGenerated",
+        "faceObservationWithRequestRevision",
+    ]
+    .into_iter()
+    .map(String::from)
+    .collect();
+    report("VNFaceObservation", &apple, &referenced, &omitted);
+}
+
+#[test]
 fn vn_recognized_text_observation_coverage() {
     let si = read_swiftinterface();
     let apple = extract_type_surface(&si, "VNRecognizedTextObservation");
