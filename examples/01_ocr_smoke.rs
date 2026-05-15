@@ -5,8 +5,8 @@
 //! Run with: `cargo run --example 01_ocr_smoke`
 
 use std::path::PathBuf;
-use vision::prelude::*;
-use vision::recognize_text::_test_helper_render_text_png;
+use apple_vision::prelude::*;
+use apple_vision::recognize_text::_test_helper_render_text_png;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let png_path: PathBuf = "/tmp/vision_ocr_smoke.png".into();

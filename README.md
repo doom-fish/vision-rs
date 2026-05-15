@@ -7,7 +7,7 @@ Safe Rust bindings for Apple's [Vision](https://developer.apple.com/documentatio
 ## Quick start — OCR
 
 ```rust,no_run
-use vision::prelude::*;
+use apple_vision::prelude::*;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let recognizer = TextRecognizer::new()
