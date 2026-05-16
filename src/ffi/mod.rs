@@ -193,6 +193,15 @@ pub struct FaceQualityRaw {
     pub has_quality: bool,
 }
 
+/// Mirrors `VNSegmentationMaskRaw` in Vision.swift. Layout-compatible.
+#[repr(C)]
+pub struct SegmentationMaskRaw {
+    pub width: usize,
+    pub height: usize,
+    pub bytes_per_row: usize,
+    pub bytes: *mut c_void,
+}
+
 extern "C" {
     pub fn vn_string_free(s: *mut c_char);
 
@@ -363,6 +372,24 @@ extern "C" {
     ) -> i32;
 
     pub fn vn_face_quality_observations_free(array: *mut c_void, count: usize);
+
+    pub fn vn_generate_person_segmentation_in_path(
+        path: *const c_char,
+        quality_level: i32,
+        out_mask: *mut SegmentationMaskRaw,
+        out_has_value: *mut bool,
+        out_error_message: *mut *mut c_char,
+    ) -> i32;
+
+    pub fn vn_generate_foreground_instance_mask_in_path(
+        path: *const c_char,
+        out_mask: *mut SegmentationMaskRaw,
+        out_instance_count: *mut usize,
+        out_has_value: *mut bool,
+        out_error_message: *mut *mut c_char,
+    ) -> i32;
+
+    pub fn vn_segmentation_mask_free(mask: *mut SegmentationMaskRaw);
 
     pub fn vn_test_helper_render_text_png(
         text: *const c_char,

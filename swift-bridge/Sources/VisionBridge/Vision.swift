@@ -1453,3 +1453,119 @@ public func vn_face_quality_observations_free(_ array: UnsafeMutableRawPointer?,
     _ = count
     typed.deallocate()
 }
+
+// MARK: - Person segmentation (v0.10)
+
+@frozen
+public struct VNSegmentationMaskRaw {
+    public var width: Int
+    public var height: Int
+    public var bytes_per_row: Int
+    /// Newly-allocated buffer of `height * bytes_per_row` bytes.
+    /// Caller frees via `vn_segmentation_mask_free`.
+    public var bytes: UnsafeMutableRawPointer?
+}
+
+private func copyCVPixelBufferToBytes(_ buffer: CVPixelBuffer) -> VNSegmentationMaskRaw {
+    let width = CVPixelBufferGetWidth(buffer)
+    let height = CVPixelBufferGetHeight(buffer)
+    let bytesPerRow = CVPixelBufferGetBytesPerRow(buffer)
+    CVPixelBufferLockBaseAddress(buffer, .readOnly)
+    defer { CVPixelBufferUnlockBaseAddress(buffer, .readOnly) }
+    guard let base = CVPixelBufferGetBaseAddress(buffer) else {
+        return VNSegmentationMaskRaw(width: width, height: height,
+                                     bytes_per_row: bytesPerRow, bytes: nil)
+    }
+    let size = height * bytesPerRow
+    let out = UnsafeMutableRawPointer.allocate(byteCount: size, alignment: 8)
+    memcpy(out, base, size)
+    return VNSegmentationMaskRaw(
+        width: width, height: height,
+        bytes_per_row: bytesPerRow, bytes: out)
+}
+
+/// Quality levels for person segmentation: 0=fast, 1=balanced, 2=accurate.
+@_cdecl("vn_generate_person_segmentation_in_path")
+public func vn_generate_person_segmentation_in_path(
+    _ path: UnsafePointer<CChar>,
+    _ qualityLevel: Int32,
+    _ outMaskRaw: UnsafeMutableRawPointer,
+    _ outHasValue: UnsafeMutablePointer<Bool>,
+    _ outErrorMessage: UnsafeMutablePointer<UnsafeMutablePointer<CChar>?>?
+) -> Int32 {
+    let outMask = outMaskRaw.assumingMemoryBound(to: VNSegmentationMaskRaw.self)
+    let pathStr = String(cString: path)
+    guard let cgImage = loadCGImage(path: pathStr) else {
+        outErrorMessage?.pointee = ffiString("could not load image at \(pathStr)")
+        outHasValue.pointee = false
+        return VN_IMAGE_LOAD_FAILED
+    }
+    let handler = VNImageRequestHandler(cgImage: cgImage, options: [:])
+    let request = VNGeneratePersonSegmentationRequest()
+    if let lvl = VNGeneratePersonSegmentationRequest.QualityLevel(rawValue: UInt(qualityLevel)) {
+        request.qualityLevel = lvl
+    }
+    // 8bppONE mask format (kCVPixelFormatType_OneComponent8).
+    request.outputPixelFormat = 0x4f6e6538 // 'One8'
+    do { try handler.perform([request]) } catch {
+        outErrorMessage?.pointee = ffiString("person segmentation failed: \(error.localizedDescription)")
+        outHasValue.pointee = false
+        return VN_REQUEST_FAILED
+    }
+    guard let obs = request.results?.first else {
+        outHasValue.pointee = false
+        return VN_OK
+    }
+    outMask.pointee = copyCVPixelBufferToBytes(obs.pixelBuffer)
+    outHasValue.pointee = true
+    return VN_OK
+}
+
+@_cdecl("vn_generate_foreground_instance_mask_in_path")
+public func vn_generate_foreground_instance_mask_in_path(
+    _ path: UnsafePointer<CChar>,
+    _ outMaskRaw: UnsafeMutableRawPointer,
+    _ outInstanceCount: UnsafeMutablePointer<Int>,
+    _ outHasValue: UnsafeMutablePointer<Bool>,
+    _ outErrorMessage: UnsafeMutablePointer<UnsafeMutablePointer<CChar>?>?
+) -> Int32 {
+    let outMask = outMaskRaw.assumingMemoryBound(to: VNSegmentationMaskRaw.self)
+    if #unavailable(macOS 14.0) {
+        outErrorMessage?.pointee = ffiString("foreground instance mask requires macOS 14+")
+        outHasValue.pointee = false
+        return VN_REQUEST_FAILED
+    }
+    let pathStr = String(cString: path)
+    guard let cgImage = loadCGImage(path: pathStr) else {
+        outErrorMessage?.pointee = ffiString("could not load image at \(pathStr)")
+        outHasValue.pointee = false
+        return VN_IMAGE_LOAD_FAILED
+    }
+    let handler = VNImageRequestHandler(cgImage: cgImage, options: [:])
+    if #available(macOS 14.0, *) {
+        let request = VNGenerateForegroundInstanceMaskRequest()
+        do { try handler.perform([request]) } catch {
+            outErrorMessage?.pointee = ffiString("foreground mask failed: \(error.localizedDescription)")
+            outHasValue.pointee = false
+            return VN_REQUEST_FAILED
+        }
+        guard let obs = request.results?.first else {
+            outHasValue.pointee = false
+            outInstanceCount.pointee = 0
+            return VN_OK
+        }
+        outMask.pointee = copyCVPixelBufferToBytes(obs.instanceMask)
+        outInstanceCount.pointee = obs.allInstances.count
+        outHasValue.pointee = true
+    }
+    return VN_OK
+}
+
+@_cdecl("vn_segmentation_mask_free")
+public func vn_segmentation_mask_free(_ mask: UnsafeMutableRawPointer) {
+    let typed = mask.assumingMemoryBound(to: VNSegmentationMaskRaw.self)
+    if let b = typed.pointee.bytes {
+        b.deallocate()
+        typed.pointee.bytes = nil
+    }
+}

@@ -77,6 +77,10 @@ pub mod humans;
 #[cfg_attr(docsrs, doc(cfg(feature = "aesthetics")))]
 pub mod aesthetics;
 
+#[cfg(feature = "segmentation")]
+#[cfg_attr(docsrs, doc(cfg(feature = "segmentation")))]
+pub mod segmentation;
+
 pub use error::VisionError;
 
 #[cfg(feature = "recognize_text")]
@@ -128,6 +132,12 @@ pub use humans::{detect_human_rectangles_in_path, DetectedHuman};
 pub use aesthetics::{
     calculate_aesthetics_scores_in_path, detect_face_capture_quality_in_path,
     AestheticsScores, FaceCaptureQuality,
+};
+
+#[cfg(feature = "segmentation")]
+pub use segmentation::{
+    generate_foreground_instance_mask_in_path, generate_person_segmentation_in_path,
+    InstanceMask, SegmentationMask, SegmentationQuality,
 };
 
 /// Common imports.
