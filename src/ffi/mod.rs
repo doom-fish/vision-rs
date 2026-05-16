@@ -130,6 +130,50 @@ pub struct RecognizedAnimalRaw {
     pub bbox_h: f64,
 }
 
+/// Mirrors `VNClassificationRaw` in Vision.swift. Layout-compatible.
+#[repr(C)]
+pub struct ClassificationRaw {
+    pub identifier: *mut c_char,
+    pub confidence: f32,
+}
+
+/// Mirrors `VNRectangleObservationRaw` in Vision.swift. Layout-compatible.
+#[repr(C)]
+pub struct RectangleObservationRaw {
+    pub bbox_x: f64,
+    pub bbox_y: f64,
+    pub bbox_w: f64,
+    pub bbox_h: f64,
+    pub confidence: f32,
+    pub tl_x: f64,
+    pub tl_y: f64,
+    pub tr_x: f64,
+    pub tr_y: f64,
+    pub bl_x: f64,
+    pub bl_y: f64,
+    pub br_x: f64,
+    pub br_y: f64,
+}
+
+/// Mirrors `VNFeaturePrintRaw` in Vision.swift. Layout-compatible.
+#[repr(C)]
+pub struct FeaturePrintRaw {
+    pub element_type: i32,
+    pub element_count: usize,
+    pub bytes: *mut c_void,
+}
+
+/// Mirrors `VNHumanObservationRaw` in Vision.swift. Layout-compatible.
+#[repr(C)]
+pub struct HumanObservationRaw {
+    pub bbox_x: f64,
+    pub bbox_y: f64,
+    pub bbox_w: f64,
+    pub bbox_h: f64,
+    pub confidence: f32,
+    pub upper_body_only: bool,
+}
+
 extern "C" {
     pub fn vn_string_free(s: *mut c_char);
 
@@ -232,6 +276,58 @@ extern "C" {
     ) -> i32;
 
     pub fn vn_recognized_animals_free(array: *mut c_void, count: usize);
+
+    pub fn vn_classify_image_in_path(
+        path: *const c_char,
+        out_array: *mut *mut c_void,
+        out_count: *mut usize,
+        out_error_message: *mut *mut c_char,
+    ) -> i32;
+    pub fn vn_classifications_free(array: *mut c_void, count: usize);
+
+    pub fn vn_detect_rectangles_in_path(
+        path: *const c_char,
+        max_observations: usize,
+        minimum_aspect_ratio: f32,
+        maximum_aspect_ratio: f32,
+        minimum_size: f32,
+        minimum_confidence: f32,
+        out_array: *mut *mut c_void,
+        out_count: *mut usize,
+        out_error_message: *mut *mut c_char,
+    ) -> i32;
+
+    pub fn vn_detect_document_segmentation_in_path(
+        path: *const c_char,
+        out_array: *mut *mut c_void,
+        out_count: *mut usize,
+        out_error_message: *mut *mut c_char,
+    ) -> i32;
+
+    pub fn vn_rectangle_observations_free(array: *mut c_void, count: usize);
+
+    pub fn vn_detect_horizon_in_path(
+        path: *const c_char,
+        out_angle: *mut f64,
+        out_has_value: *mut bool,
+        out_error_message: *mut *mut c_char,
+    ) -> i32;
+
+    pub fn vn_generate_image_feature_print_in_path(
+        path: *const c_char,
+        out_feature: *mut FeaturePrintRaw,
+        out_error_message: *mut *mut c_char,
+    ) -> i32;
+    pub fn vn_feature_print_free(feature: *mut FeaturePrintRaw);
+
+    pub fn vn_detect_human_rectangles_in_path(
+        path: *const c_char,
+        upper_body_only: bool,
+        out_array: *mut *mut c_void,
+        out_count: *mut usize,
+        out_error_message: *mut *mut c_char,
+    ) -> i32;
+    pub fn vn_human_observations_free(array: *mut c_void, count: usize);
 
     pub fn vn_test_helper_render_text_png(
         text: *const c_char,

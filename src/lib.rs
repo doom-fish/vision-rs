@@ -53,6 +53,26 @@ pub mod contours;
 #[cfg_attr(docsrs, doc(cfg(feature = "animals")))]
 pub mod animals;
 
+#[cfg(feature = "classify")]
+#[cfg_attr(docsrs, doc(cfg(feature = "classify")))]
+pub mod classify;
+
+#[cfg(feature = "rectangles")]
+#[cfg_attr(docsrs, doc(cfg(feature = "rectangles")))]
+pub mod rectangles;
+
+#[cfg(feature = "horizon")]
+#[cfg_attr(docsrs, doc(cfg(feature = "horizon")))]
+pub mod horizon;
+
+#[cfg(feature = "feature_print")]
+#[cfg_attr(docsrs, doc(cfg(feature = "feature_print")))]
+pub mod feature_print;
+
+#[cfg(feature = "humans")]
+#[cfg_attr(docsrs, doc(cfg(feature = "humans")))]
+pub mod humans;
+
 pub use error::VisionError;
 
 #[cfg(feature = "recognize_text")]
@@ -82,12 +102,32 @@ pub use contours::{detect_contours_in_path, Contour, ContourOptions};
 #[cfg(feature = "animals")]
 pub use animals::{recognize_animals_in_path, RecognizedAnimal};
 
+#[cfg(feature = "classify")]
+pub use classify::{classify_image_in_path, Classification};
+
+#[cfg(feature = "rectangles")]
+pub use rectangles::{
+    detect_document_segmentation_in_path, detect_rectangles_in_path, RectangleObservation,
+    RectangleOptions,
+};
+
+#[cfg(feature = "horizon")]
+pub use horizon::detect_horizon_in_path;
+
+#[cfg(feature = "feature_print")]
+pub use feature_print::{generate_image_feature_print_in_path, FeaturePrint};
+
+#[cfg(feature = "humans")]
+pub use humans::{detect_human_rectangles_in_path, DetectedHuman};
+
 /// Common imports.
 pub mod prelude {
     #[cfg(feature = "animals")]
     pub use crate::animals::{recognize_animals_in_path, RecognizedAnimal};
     #[cfg(feature = "body_pose")]
     pub use crate::body_pose::{detect_human_body_pose_in_path, DetectedBodyPose, JointPoint};
+    #[cfg(feature = "classify")]
+    pub use crate::classify::{classify_image_in_path, Classification};
     #[cfg(feature = "contours")]
     pub use crate::contours::{detect_contours_in_path, Contour, ContourOptions};
     #[cfg(feature = "detect_barcodes")]
@@ -99,8 +139,19 @@ pub mod prelude {
     pub use crate::face_landmarks::{
         detect_face_landmarks_in_path, FaceWithLandmarks, LandmarkPoint,
     };
+    #[cfg(feature = "feature_print")]
+    pub use crate::feature_print::{generate_image_feature_print_in_path, FeaturePrint};
     #[cfg(feature = "hand_pose")]
     pub use crate::hand_pose::{detect_human_hand_pose_in_path, DetectedHandPose};
+    #[cfg(feature = "horizon")]
+    pub use crate::horizon::detect_horizon_in_path;
+    #[cfg(feature = "humans")]
+    pub use crate::humans::{detect_human_rectangles_in_path, DetectedHuman};
+    #[cfg(feature = "rectangles")]
+    pub use crate::rectangles::{
+        detect_document_segmentation_in_path, detect_rectangles_in_path, RectangleObservation,
+        RectangleOptions,
+    };
     #[cfg(feature = "recognize_text")]
     pub use crate::recognize_text::{
         BoundingBox, RecognitionLevel, RecognizedText, TextRecognizer,
