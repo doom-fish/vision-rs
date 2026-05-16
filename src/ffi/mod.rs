@@ -51,6 +51,49 @@ pub struct SaliencyRegionRaw {
     pub bbox_h: f64,
 }
 
+/// Mirrors `VNFaceLandmarksRaw` in Vision.swift. Layout-compatible.
+///
+/// All `*_count` fields are NUMBER OF POINTS; each point buffer is an
+/// interleaved `[x0, y0, x1, y1, …]` array of doubles, length
+/// `count * 2`. A NULL pointer + 0 count means the region wasn't
+/// produced for this face.
+#[repr(C)]
+pub struct FaceLandmarksRaw {
+    pub bbox_x: f64,
+    pub bbox_y: f64,
+    pub bbox_w: f64,
+    pub bbox_h: f64,
+    pub confidence: f32,
+    pub roll: f32,
+    pub yaw: f32,
+    pub pitch: f32,
+
+    pub face_contour: *mut f64,
+    pub face_contour_count: usize,
+    pub left_eye: *mut f64,
+    pub left_eye_count: usize,
+    pub right_eye: *mut f64,
+    pub right_eye_count: usize,
+    pub left_eyebrow: *mut f64,
+    pub left_eyebrow_count: usize,
+    pub right_eyebrow: *mut f64,
+    pub right_eyebrow_count: usize,
+    pub nose: *mut f64,
+    pub nose_count: usize,
+    pub nose_crest: *mut f64,
+    pub nose_crest_count: usize,
+    pub median_line: *mut f64,
+    pub median_line_count: usize,
+    pub outer_lips: *mut f64,
+    pub outer_lips_count: usize,
+    pub inner_lips: *mut f64,
+    pub inner_lips_count: usize,
+    pub left_pupil: *mut f64,
+    pub left_pupil_count: usize,
+    pub right_pupil: *mut f64,
+    pub right_pupil_count: usize,
+}
+
 extern "C" {
     pub fn vn_string_free(s: *mut c_char);
 
@@ -107,6 +150,15 @@ extern "C" {
     ) -> i32;
 
     pub fn vn_saliency_regions_free(array: *mut c_void, count: usize);
+
+    pub fn vn_detect_face_landmarks_in_path(
+        path: *const c_char,
+        out_array: *mut *mut c_void,
+        out_count: *mut usize,
+        out_error_message: *mut *mut c_char,
+    ) -> i32;
+
+    pub fn vn_face_landmarks_free(array: *mut c_void, count: usize);
 
     pub fn vn_test_helper_render_text_png(
         text: *const c_char,

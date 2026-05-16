@@ -33,6 +33,10 @@ pub mod detect_barcodes;
 #[cfg_attr(docsrs, doc(cfg(feature = "saliency")))]
 pub mod saliency;
 
+#[cfg(feature = "face_landmarks")]
+#[cfg_attr(docsrs, doc(cfg(feature = "face_landmarks")))]
+pub mod face_landmarks;
+
 pub use error::VisionError;
 
 #[cfg(feature = "recognize_text")]
@@ -47,6 +51,9 @@ pub use detect_barcodes::{detect_barcodes_in_path, DetectedBarcode};
 #[cfg(feature = "saliency")]
 pub use saliency::{attention_saliency_in_path, SalientRegion};
 
+#[cfg(feature = "face_landmarks")]
+pub use face_landmarks::{detect_face_landmarks_in_path, FaceWithLandmarks, LandmarkPoint};
+
 /// Common imports.
 pub mod prelude {
     #[cfg(feature = "detect_barcodes")]
@@ -54,6 +61,10 @@ pub mod prelude {
     #[cfg(feature = "detect_faces")]
     pub use crate::detect_faces::{DetectedFace, FaceDetector};
     pub use crate::error::VisionError;
+    #[cfg(feature = "face_landmarks")]
+    pub use crate::face_landmarks::{
+        detect_face_landmarks_in_path, FaceWithLandmarks, LandmarkPoint,
+    };
     #[cfg(feature = "recognize_text")]
     pub use crate::recognize_text::{
         BoundingBox, RecognitionLevel, RecognizedText, TextRecognizer,
