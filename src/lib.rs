@@ -85,6 +85,10 @@ pub mod segmentation;
 #[cfg_attr(docsrs, doc(cfg(feature = "optical_flow")))]
 pub mod optical_flow;
 
+#[cfg(feature = "coreml")]
+#[cfg_attr(docsrs, doc(cfg(feature = "coreml")))]
+pub mod coreml;
+
 pub use error::VisionError;
 
 #[cfg(feature = "recognize_text")]
@@ -146,6 +150,9 @@ pub use segmentation::{
 
 #[cfg(feature = "optical_flow")]
 pub use optical_flow::{generate_optical_flow_in_paths, OpticalFlowAccuracy};
+
+#[cfg(feature = "coreml")]
+pub use coreml::coreml_classify_in_path;
 
 /// Common imports.
 pub mod prelude {

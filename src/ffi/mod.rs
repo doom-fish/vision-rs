@@ -400,6 +400,14 @@ extern "C" {
         out_error_message: *mut *mut c_char,
     ) -> i32;
 
+    pub fn vn_coreml_classify_in_path(
+        path: *const c_char,
+        model_path: *const c_char,
+        out_array: *mut *mut c_void,
+        out_count: *mut usize,
+        out_error_message: *mut *mut c_char,
+    ) -> i32;
+
     pub fn vn_test_helper_render_text_png(
         text: *const c_char,
         width: i32,

@@ -1615,3 +1615,69 @@ public func vn_generate_optical_flow_in_paths(
     outHasValue.pointee = true
     return VN_OK
 }
+
+// MARK: - CoreML request (v0.12)
+
+import CoreML
+
+@_cdecl("vn_coreml_classify_in_path")
+public func vn_coreml_classify_in_path(
+    _ path: UnsafePointer<CChar>,
+    _ model_path: UnsafePointer<CChar>,
+    _ outArray: UnsafeMutablePointer<UnsafeMutableRawPointer?>,
+    _ outCount: UnsafeMutablePointer<Int>,
+    _ outErrorMessage: UnsafeMutablePointer<UnsafeMutablePointer<CChar>?>?
+) -> Int32 {
+    let pathStr = String(cString: path)
+    let modelStr = String(cString: model_path)
+    guard let cgImage = loadCGImage(path: pathStr) else {
+        outErrorMessage?.pointee = ffiString("could not load image at \(pathStr)")
+        outArray.pointee = nil; outCount.pointee = 0
+        return VN_IMAGE_LOAD_FAILED
+    }
+    let modelURL = URL(fileURLWithPath: modelStr)
+    let compiledURL: URL
+    do {
+        compiledURL = try MLModel.compileModel(at: modelURL)
+    } catch {
+        outErrorMessage?.pointee = ffiString("MLModel.compileModel: \(error.localizedDescription)")
+        outArray.pointee = nil; outCount.pointee = 0
+        return VN_REQUEST_FAILED
+    }
+    let mlModel: MLModel
+    do {
+        mlModel = try MLModel(contentsOf: compiledURL)
+    } catch {
+        outErrorMessage?.pointee = ffiString("MLModel init: \(error.localizedDescription)")
+        outArray.pointee = nil; outCount.pointee = 0
+        return VN_REQUEST_FAILED
+    }
+    let vnModel: VNCoreMLModel
+    do {
+        vnModel = try VNCoreMLModel(for: mlModel)
+    } catch {
+        outErrorMessage?.pointee = ffiString("VNCoreMLModel: \(error.localizedDescription)")
+        outArray.pointee = nil; outCount.pointee = 0
+        return VN_REQUEST_FAILED
+    }
+    let request = VNCoreMLRequest(model: vnModel)
+    let handler = VNImageRequestHandler(cgImage: cgImage, options: [:])
+    do { try handler.perform([request]) } catch {
+        outErrorMessage?.pointee = ffiString("CoreML perform: \(error.localizedDescription)")
+        outArray.pointee = nil; outCount.pointee = 0
+        return VN_REQUEST_FAILED
+    }
+    guard let results = request.results as? [VNClassificationObservation], !results.isEmpty else {
+        outArray.pointee = nil; outCount.pointee = 0; return VN_OK
+    }
+    let count = results.count
+    let buf = UnsafeMutablePointer<VNClassificationRaw>.allocate(capacity: count)
+    for (i, obs) in results.enumerated() {
+        buf.advanced(by: i).initialize(to: VNClassificationRaw(
+            identifier: ffiString(obs.identifier),
+            confidence: obs.confidence))
+    }
+    outArray.pointee = UnsafeMutableRawPointer(buf)
+    outCount.pointee = count
+    return VN_OK
+}
