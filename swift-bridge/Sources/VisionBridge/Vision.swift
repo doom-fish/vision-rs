@@ -1344,3 +1344,112 @@ public func vn_human_observations_free(_ array: UnsafeMutableRawPointer?, _ coun
     _ = count
     typed.deallocate()
 }
+
+// MARK: - Aesthetics + face capture quality (v0.9)
+
+@frozen
+public struct VNAestheticsScoresRaw {
+    public var overall_score: Float
+    public var is_utility: Bool
+}
+
+@_cdecl("vn_calculate_aesthetics_scores_in_path")
+public func vn_calculate_aesthetics_scores_in_path(
+    _ path: UnsafePointer<CChar>,
+    _ outScoresRaw: UnsafeMutableRawPointer,
+    _ outHasValue: UnsafeMutablePointer<Bool>,
+    _ outErrorMessage: UnsafeMutablePointer<UnsafeMutablePointer<CChar>?>?
+) -> Int32 {
+    let outScores = outScoresRaw.assumingMemoryBound(to: VNAestheticsScoresRaw.self)
+    if #unavailable(macOS 15.0) {
+        outErrorMessage?.pointee = ffiString("aesthetics scores require macOS 15+")
+        outHasValue.pointee = false
+        return VN_REQUEST_FAILED
+    }
+    let pathStr = String(cString: path)
+    guard let cgImage = loadCGImage(path: pathStr) else {
+        outErrorMessage?.pointee = ffiString("could not load image at \(pathStr)")
+        outHasValue.pointee = false
+        return VN_IMAGE_LOAD_FAILED
+    }
+    let handler = VNImageRequestHandler(cgImage: cgImage, options: [:])
+    if #available(macOS 15.0, *) {
+        let request = VNCalculateImageAestheticsScoresRequest()
+        do { try handler.perform([request]) } catch {
+            outErrorMessage?.pointee = ffiString("aesthetics request failed: \(error.localizedDescription)")
+            outHasValue.pointee = false
+            return VN_REQUEST_FAILED
+        }
+        guard let obs = request.results?.first else {
+            outHasValue.pointee = false
+            return VN_OK
+        }
+        outScores.pointee = VNAestheticsScoresRaw(
+            overall_score: obs.overallScore,
+            is_utility: obs.isUtility
+        )
+        outHasValue.pointee = true
+    }
+    return VN_OK
+}
+
+@frozen
+public struct VNFaceQualityRaw {
+    public var bbox_x: Double
+    public var bbox_y: Double
+    public var bbox_w: Double
+    public var bbox_h: Double
+    public var confidence: Float
+    public var capture_quality: Float
+    public var has_quality: Bool
+}
+
+@_cdecl("vn_detect_face_capture_quality_in_path")
+public func vn_detect_face_capture_quality_in_path(
+    _ path: UnsafePointer<CChar>,
+    _ outArray: UnsafeMutablePointer<UnsafeMutableRawPointer?>,
+    _ outCount: UnsafeMutablePointer<Int>,
+    _ outErrorMessage: UnsafeMutablePointer<UnsafeMutablePointer<CChar>?>?
+) -> Int32 {
+    let pathStr = String(cString: path)
+    guard let cgImage = loadCGImage(path: pathStr) else {
+        outErrorMessage?.pointee = ffiString("could not load image at \(pathStr)")
+        outArray.pointee = nil; outCount.pointee = 0
+        return VN_IMAGE_LOAD_FAILED
+    }
+    let handler = VNImageRequestHandler(cgImage: cgImage, options: [:])
+    let request = VNDetectFaceCaptureQualityRequest()
+    do { try handler.perform([request]) } catch {
+        outErrorMessage?.pointee = ffiString("face quality request failed: \(error.localizedDescription)")
+        outArray.pointee = nil; outCount.pointee = 0
+        return VN_REQUEST_FAILED
+    }
+    let results = request.results ?? []
+    let count = results.count
+    if count == 0 { outArray.pointee = nil; outCount.pointee = 0; return VN_OK }
+    let buf = UnsafeMutablePointer<VNFaceQualityRaw>.allocate(capacity: count)
+    for (i, obs) in results.enumerated() {
+        let b = obs.boundingBox
+        let q = obs.faceCaptureQuality
+        buf.advanced(by: i).initialize(to: VNFaceQualityRaw(
+            bbox_x: Double(b.origin.x),
+            bbox_y: Double(b.origin.y),
+            bbox_w: Double(b.size.width),
+            bbox_h: Double(b.size.height),
+            confidence: obs.confidence,
+            capture_quality: q ?? 0.0,
+            has_quality: q != nil
+        ))
+    }
+    outArray.pointee = UnsafeMutableRawPointer(buf)
+    outCount.pointee = count
+    return VN_OK
+}
+
+@_cdecl("vn_face_quality_observations_free")
+public func vn_face_quality_observations_free(_ array: UnsafeMutableRawPointer?, _ count: Int) {
+    guard let array = array else { return }
+    let typed = array.assumingMemoryBound(to: VNFaceQualityRaw.self)
+    _ = count
+    typed.deallocate()
+}

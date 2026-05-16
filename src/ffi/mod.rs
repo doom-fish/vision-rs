@@ -174,6 +174,25 @@ pub struct HumanObservationRaw {
     pub upper_body_only: bool,
 }
 
+/// Mirrors `VNAestheticsScoresRaw` in Vision.swift. Layout-compatible.
+#[repr(C)]
+pub struct AestheticsScoresRaw {
+    pub overall_score: f32,
+    pub is_utility: bool,
+}
+
+/// Mirrors `VNFaceQualityRaw` in Vision.swift. Layout-compatible.
+#[repr(C)]
+pub struct FaceQualityRaw {
+    pub bbox_x: f64,
+    pub bbox_y: f64,
+    pub bbox_w: f64,
+    pub bbox_h: f64,
+    pub confidence: f32,
+    pub capture_quality: f32,
+    pub has_quality: bool,
+}
+
 extern "C" {
     pub fn vn_string_free(s: *mut c_char);
 
@@ -328,6 +347,22 @@ extern "C" {
         out_error_message: *mut *mut c_char,
     ) -> i32;
     pub fn vn_human_observations_free(array: *mut c_void, count: usize);
+
+    pub fn vn_calculate_aesthetics_scores_in_path(
+        path: *const c_char,
+        out_scores: *mut AestheticsScoresRaw,
+        out_has_value: *mut bool,
+        out_error_message: *mut *mut c_char,
+    ) -> i32;
+
+    pub fn vn_detect_face_capture_quality_in_path(
+        path: *const c_char,
+        out_array: *mut *mut c_void,
+        out_count: *mut usize,
+        out_error_message: *mut *mut c_char,
+    ) -> i32;
+
+    pub fn vn_face_quality_observations_free(array: *mut c_void, count: usize);
 
     pub fn vn_test_helper_render_text_png(
         text: *const c_char,

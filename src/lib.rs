@@ -73,6 +73,10 @@ pub mod feature_print;
 #[cfg_attr(docsrs, doc(cfg(feature = "humans")))]
 pub mod humans;
 
+#[cfg(feature = "aesthetics")]
+#[cfg_attr(docsrs, doc(cfg(feature = "aesthetics")))]
+pub mod aesthetics;
+
 pub use error::VisionError;
 
 #[cfg(feature = "recognize_text")]
@@ -119,6 +123,12 @@ pub use feature_print::{generate_image_feature_print_in_path, FeaturePrint};
 
 #[cfg(feature = "humans")]
 pub use humans::{detect_human_rectangles_in_path, DetectedHuman};
+
+#[cfg(feature = "aesthetics")]
+pub use aesthetics::{
+    calculate_aesthetics_scores_in_path, detect_face_capture_quality_in_path,
+    AestheticsScores, FaceCaptureQuality,
+};
 
 /// Common imports.
 pub mod prelude {
