@@ -1,0 +1,99 @@
+//! Edge contour detection (`VNDetectContoursRequest`).
+
+use core::ffi::c_char;
+use core::ptr;
+use std::ffi::CString;
+use std::path::Path;
+
+use crate::error::{from_swift, VisionError};
+use crate::ffi;
+use crate::face_landmarks::LandmarkPoint;
+
+/// A single closed contour, represented as an ordered list of points
+/// in normalised image coordinates.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Contour {
+    /// Vertices in path order, normalised to `0.0..=1.0`.
+    pub points: Vec<LandmarkPoint>,
+    /// Number of child (nested) contours inside this one.
+    pub child_count: isize,
+    /// Bounding-box width / height of this contour.
+    pub aspect_ratio: f32,
+}
+
+/// Options for `detect_contours_in_path`.
+#[derive(Debug, Clone, Copy)]
+pub struct ContourOptions {
+    /// `0.0..=1.0` — Apple's per-pixel contrast adjustment before
+    /// detection. Default 2.0 in the SDK; we mirror that.
+    pub contrast_adjustment: f32,
+    /// If `true`, look for dark shapes against a light background.
+    /// If `false`, light shapes against a dark background.
+    pub detects_dark_on_light: bool,
+}
+
+impl Default for ContourOptions {
+    fn default() -> Self {
+        Self {
+            contrast_adjustment: 2.0,
+            detects_dark_on_light: true,
+        }
+    }
+}
+
+/// Detect top-level contours in the image at `path`. Only the
+/// outermost (top-level) contours are returned; nested contours are
+/// counted but not enumerated.
+///
+/// # Errors
+///
+/// Returns [`VisionError::ImageLoadFailed`] / [`VisionError::RequestFailed`].
+pub fn detect_contours_in_path(
+    path: impl AsRef<Path>,
+    options: ContourOptions,
+) -> Result<Vec<Contour>, VisionError> {
+    let path_str = path
+        .as_ref()
+        .to_str()
+        .ok_or_else(|| VisionError::InvalidArgument("non-UTF-8 path".into()))?;
+    let path_c = CString::new(path_str)
+        .map_err(|e| VisionError::InvalidArgument(format!("path NUL byte: {e}")))?;
+
+    let mut out_array: *mut core::ffi::c_void = ptr::null_mut();
+    let mut out_count: usize = 0;
+    let mut err_msg: *mut c_char = ptr::null_mut();
+    let status = unsafe {
+        ffi::vn_detect_contours_in_path(
+            path_c.as_ptr(),
+            options.contrast_adjustment,
+            options.detects_dark_on_light,
+            &mut out_array,
+            &mut out_count,
+            &mut err_msg,
+        )
+    };
+    if status != ffi::status::OK {
+        return Err(unsafe { from_swift(status, err_msg) });
+    }
+    if out_array.is_null() || out_count == 0 {
+        return Ok(Vec::new());
+    }
+    let typed = out_array.cast::<ffi::ContourRaw>();
+    let mut v = Vec::with_capacity(out_count);
+    for i in 0..out_count {
+        let raw = unsafe { &*typed.add(i) };
+        let mut pts = Vec::with_capacity(raw.point_count);
+        for k in 0..raw.point_count {
+            let x = unsafe { *raw.point_xs.add(k) };
+            let y = unsafe { *raw.point_ys.add(k) };
+            pts.push(LandmarkPoint { x, y });
+        }
+        v.push(Contour {
+            points: pts,
+            child_count: raw.child_count,
+            aspect_ratio: raw.aspect_ratio,
+        });
+    }
+    unsafe { ffi::vn_contours_free(out_array, out_count) };
+    Ok(v)
+}

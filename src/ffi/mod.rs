@@ -94,6 +94,42 @@ pub struct FaceLandmarksRaw {
     pub right_pupil_count: usize,
 }
 
+/// Mirrors `VNPoseObservationRaw` in Vision.swift. Layout-compatible.
+#[repr(C)]
+pub struct PoseObservationRaw {
+    pub bbox_x: f64,
+    pub bbox_y: f64,
+    pub bbox_w: f64,
+    pub bbox_h: f64,
+    pub confidence: f32,
+    pub joint_names: *mut *mut c_char,
+    pub joint_xs: *mut f64,
+    pub joint_ys: *mut f64,
+    pub joint_confidences: *mut f32,
+    pub joint_count: usize,
+}
+
+/// Mirrors `VNContourRaw` in Vision.swift. Layout-compatible.
+#[repr(C)]
+pub struct ContourRaw {
+    pub point_xs: *mut f64,
+    pub point_ys: *mut f64,
+    pub point_count: usize,
+    pub child_count: isize,
+    pub aspect_ratio: f32,
+}
+
+/// Mirrors `VNRecognizedAnimalRaw` in Vision.swift. Layout-compatible.
+#[repr(C)]
+pub struct RecognizedAnimalRaw {
+    pub identifier: *mut c_char,
+    pub confidence: f32,
+    pub bbox_x: f64,
+    pub bbox_y: f64,
+    pub bbox_w: f64,
+    pub bbox_h: f64,
+}
+
 extern "C" {
     pub fn vn_string_free(s: *mut c_char);
 
@@ -159,6 +195,43 @@ extern "C" {
     ) -> i32;
 
     pub fn vn_face_landmarks_free(array: *mut c_void, count: usize);
+
+    pub fn vn_detect_human_body_pose_in_path(
+        path: *const c_char,
+        out_array: *mut *mut c_void,
+        out_count: *mut usize,
+        out_error_message: *mut *mut c_char,
+    ) -> i32;
+
+    pub fn vn_detect_human_hand_pose_in_path(
+        path: *const c_char,
+        max_hands: usize,
+        out_array: *mut *mut c_void,
+        out_count: *mut usize,
+        out_error_message: *mut *mut c_char,
+    ) -> i32;
+
+    pub fn vn_pose_observations_free(array: *mut c_void, count: usize);
+
+    pub fn vn_detect_contours_in_path(
+        path: *const c_char,
+        contrast_adjustment: f32,
+        detects_dark_on_light: bool,
+        out_array: *mut *mut c_void,
+        out_count: *mut usize,
+        out_error_message: *mut *mut c_char,
+    ) -> i32;
+
+    pub fn vn_contours_free(array: *mut c_void, count: usize);
+
+    pub fn vn_recognize_animals_in_path(
+        path: *const c_char,
+        out_array: *mut *mut c_void,
+        out_count: *mut usize,
+        out_error_message: *mut *mut c_char,
+    ) -> i32;
+
+    pub fn vn_recognized_animals_free(array: *mut c_void, count: usize);
 
     pub fn vn_test_helper_render_text_png(
         text: *const c_char,
