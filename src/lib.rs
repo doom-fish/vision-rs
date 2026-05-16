@@ -9,8 +9,8 @@
 //! OCR, object detection, face landmarks, and other on-device computer
 //! vision tasks.
 //!
-//! v0.1 ships text recognition (OCR) only. Object/face detection lands
-//! in v0.2.
+//! v0.14 covers the full Apple Vision request surface, including the
+//! stateful tracking requests.
 
 #![cfg_attr(docsrs, feature(doc_cfg))]
 
@@ -88,6 +88,10 @@ pub mod optical_flow;
 #[cfg(feature = "coreml")]
 #[cfg_attr(docsrs, doc(cfg(feature = "coreml")))]
 pub mod coreml;
+
+#[cfg(feature = "tracking")]
+#[cfg_attr(docsrs, doc(cfg(feature = "tracking")))]
+pub mod tracking;
 
 // v0.13: new request types
 pub mod animal_body_pose;
@@ -173,6 +177,12 @@ pub use registration::{
     register_homographic, register_translational, HomographicAlignment, TranslationalAlignment,
 };
 
+#[cfg(feature = "tracking")]
+pub use tracking::{
+    HomographicImageTracker, ObjectTracker, OpticalFlowFrame, OpticalFlowTracker,
+    RectangleTracker, TranslationalImageTracker,
+};
+
 /// Common imports.
 pub mod prelude {
     #[cfg(feature = "animals")]
@@ -211,4 +221,9 @@ pub mod prelude {
     };
     #[cfg(feature = "saliency")]
     pub use crate::saliency::{attention_saliency_in_path, SalientRegion};
+    #[cfg(feature = "tracking")]
+    pub use crate::tracking::{
+        HomographicImageTracker, ObjectTracker, OpticalFlowFrame, OpticalFlowTracker,
+        RectangleTracker, TranslationalImageTracker,
+    };
 }

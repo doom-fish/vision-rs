@@ -550,6 +550,77 @@ extern "C" {
     ) -> i32;
 }
 
+// ===== v0.14 tracking requests =====
+
+extern "C" {
+    pub fn vn_object_tracker_create(
+        initial_path: *const c_char,
+        initial_bbox: *mut c_void,
+        out_handle: *mut *mut c_void,
+        out_err: *mut *mut c_char,
+    ) -> i32;
+    pub fn vn_object_tracker_track(
+        handle: *mut c_void,
+        next_path: *const c_char,
+        out_bbox: *mut c_void,
+        out_err: *mut *mut c_char,
+    ) -> i32;
+    pub fn vn_object_tracker_release(handle: *mut c_void);
+
+    pub fn vn_rectangle_tracker_create(
+        initial_path: *const c_char,
+        initial_observation: *mut c_void,
+        out_handle: *mut *mut c_void,
+        out_err: *mut *mut c_char,
+    ) -> i32;
+    pub fn vn_rectangle_tracker_track(
+        handle: *mut c_void,
+        next_path: *const c_char,
+        out_observation: *mut c_void,
+        out_err: *mut *mut c_char,
+    ) -> i32;
+    pub fn vn_rectangle_tracker_release(handle: *mut c_void);
+
+    pub fn vn_optical_flow_tracker_create(
+        reference_path: *const c_char,
+        out_handle: *mut *mut c_void,
+        out_err: *mut *mut c_char,
+    ) -> i32;
+    pub fn vn_optical_flow_tracker_track(
+        handle: *mut c_void,
+        next_path: *const c_char,
+        out_mask: *mut c_void,
+        out_err: *mut *mut c_char,
+    ) -> i32;
+    pub fn vn_optical_flow_tracker_release(handle: *mut c_void);
+
+    pub fn vn_translational_image_tracker_create(
+        reference_path: *const c_char,
+        out_handle: *mut *mut c_void,
+        out_err: *mut *mut c_char,
+    ) -> i32;
+    pub fn vn_translational_image_tracker_track(
+        handle: *mut c_void,
+        next_path: *const c_char,
+        out_alignment: *mut c_void,
+        out_err: *mut *mut c_char,
+    ) -> i32;
+    pub fn vn_translational_image_tracker_release(handle: *mut c_void);
+
+    pub fn vn_homographic_image_tracker_create(
+        reference_path: *const c_char,
+        out_handle: *mut *mut c_void,
+        out_err: *mut *mut c_char,
+    ) -> i32;
+    pub fn vn_homographic_image_tracker_track(
+        handle: *mut c_void,
+        next_path: *const c_char,
+        out_alignment: *mut c_void,
+        out_err: *mut *mut c_char,
+    ) -> i32;
+    pub fn vn_homographic_image_tracker_release(handle: *mut c_void);
+}
+
 pub mod status {
     pub const OK: i32 = 0;
     pub const INVALID_ARGUMENT: i32 = -1;

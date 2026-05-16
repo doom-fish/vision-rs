@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.14.0] - 2026-05-16
+
+### Added (5 stateful tracking request types — completes Vision request coverage)
+
+- **`ObjectTracker`** — `VNTrackObjectRequest` — retains a sequence request handler + request and updates the tracked object observation across frames.
+- **`RectangleTracker`** — `VNTrackRectangleRequest` — retains a rectangle observation and tracks it across subsequent frames.
+- **`OpticalFlowTracker`** — `VNTrackOpticalFlowRequest` (macOS 14+) — returns the per-frame optical-flow pixel buffer as copied raw bytes.
+- **`TranslationalImageTracker`** — `VNTrackTranslationalImageRegistrationRequest` (macOS 14+) — returns per-frame translational alignment.
+- **`HomographicImageTracker`** — `VNTrackHomographicImageRegistrationRequest` (macOS 14+) — returns per-frame homography.
+- New example **`05_tracking`** exercises all five trackers against generated fixture frames.
+
 ## [0.13.0] - 2026-05-16
 
 ### Added (8 missing Vision request types — pushes coverage to 100% for single-frame surface)
