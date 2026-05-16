@@ -14,11 +14,11 @@ import ImageIO
 
 // MARK: - Status codes (mirrored in src/error.rs)
 
-private let VN_OK: Int32 = 0
-private let VN_INVALID_ARGUMENT: Int32 = -1
-private let VN_IMAGE_LOAD_FAILED: Int32 = -2
-private let VN_REQUEST_FAILED: Int32 = -3
-private let VN_UNKNOWN: Int32 = -99
+internal let VN_OK: Int32 = 0
+internal let VN_INVALID_ARGUMENT: Int32 = -1
+internal let VN_IMAGE_LOAD_FAILED: Int32 = -2
+internal let VN_REQUEST_FAILED: Int32 = -3
+internal let VN_UNKNOWN: Int32 = -99
 
 // MARK: - String helpers
 
@@ -28,7 +28,7 @@ public func vn_string_free(_ str: UnsafeMutablePointer<CChar>?) {
     free(str)
 }
 
-private func ffiString(_ s: String) -> UnsafeMutablePointer<CChar>? {
+internal func ffiString(_ s: String) -> UnsafeMutablePointer<CChar>? {
     return s.withCString { strdup($0) }
 }
 
@@ -59,7 +59,7 @@ public enum VNRecognitionLevelRaw: Int32 {
 
 /// Load an image from a file URL into a CGImage. Supports any format
 /// CoreGraphics' ImageIO can read (PNG/JPEG/HEIC/TIFF/...).
-private func loadCGImage(path: String) -> CGImage? {
+internal func loadCGImage(path: String) -> CGImage? {
     let url = URL(fileURLWithPath: path)
     guard let source = CGImageSourceCreateWithURL(url as CFURL, nil),
           let image = CGImageSourceCreateImageAtIndex(source, 0, nil)

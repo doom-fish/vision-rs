@@ -2,6 +2,39 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.13.0] - 2026-05-16
+
+### Added (8 missing Vision request types — pushes coverage to 100% for single-frame surface)
+
+- **`detect_animal_body_pose`** — `VNDetectAnimalBodyPoseRequest`
+  (macOS 14+) — body-pose keypoints for cats, dogs and similar
+  quadrupeds.
+- **`detect_human_body_pose_3d`** — `VNDetectHumanBodyPose3DRequest`
+  (macOS 14+) — 3D human-body keypoints.
+- **`detect_text_rectangles`** — `VNDetectTextRectanglesRequest` —
+  text-region detection without OCR.
+- **`objectness_saliency`** —
+  `VNGenerateObjectnessBasedSaliencyImageRequest` — discrete
+  salient-object regions (complements the existing attention-based
+  saliency).
+- **`person_instance_mask`** —
+  `VNGeneratePersonInstanceMaskRequest` (macOS 14+) — per-person
+  instance mask returned as an 8-bit grayscale `PersonInstanceMask`.
+- **`detect_trajectories`** — `VNDetectTrajectoriesRequest` — parabolic-
+  trajectory detection (single-frame call returns 0 results; the
+  proper stateful API lands in v0.14).
+- **`register_translational`** —
+  `VNTranslationalImageRegistrationRequest` — 2D translation
+  between two images.
+- **`register_homographic`** —
+  `VNHomographicImageRegistrationRequest` — 3×3 perspective
+  homography between two images.
+
+Swift bridge: existing `Vision.swift` helpers (`loadCGImage`,
+`ffiString`, status codes) are now `internal` so the new
+`MissingRequests.swift` file can reuse them. New example
+`04_v013_missing_requests` exercises all 8 surfaces on M4 Max.
+
 ## [0.3.0] - Unreleased
 
 ### Added

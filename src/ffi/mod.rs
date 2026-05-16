@@ -1,7 +1,7 @@
 //! Raw FFI declarations matching the Swift bridge in
 //! `swift-bridge/Sources/VisionBridge/Vision.swift`.
 
-#![allow(missing_docs, non_camel_case_types)]
+#![allow(missing_docs, non_camel_case_types, clippy::pub_underscore_fields)]
 
 use core::ffi::{c_char, c_void};
 
@@ -413,6 +413,140 @@ extern "C" {
         width: i32,
         height: i32,
         output_path: *const c_char,
+    ) -> i32;
+}
+
+// ===== v0.13 missing requests =====
+
+/// Mirrors `VNAnimalJointRaw` in MissingRequests.swift.
+#[repr(C)]
+pub struct AnimalJointRaw {
+    pub name: *mut c_char,
+    pub x: f64,
+    pub y: f64,
+    pub confidence: f32,
+    pub _pad: f32,
+}
+
+/// Mirrors `VNHumanJoint3DRaw`.
+#[repr(C)]
+pub struct HumanJoint3DRaw {
+    pub name: *mut c_char,
+    pub x: f32,
+    pub y: f32,
+    pub z: f32,
+    pub confidence: f32,
+}
+
+/// Mirrors `VNSimpleRectRaw`.
+#[repr(C)]
+pub struct SimpleRectRaw {
+    pub x: f64,
+    pub y: f64,
+    pub w: f64,
+    pub h: f64,
+    pub confidence: f32,
+    pub _pad: f32,
+}
+
+/// Mirrors `VNTrajectoryRaw`.
+#[repr(C)]
+pub struct TrajectoryRaw {
+    pub detected_x: f64,
+    pub detected_y: f64,
+    pub projected_x: f64,
+    pub projected_y: f64,
+    pub equation_a: f64,
+    pub equation_b: f64,
+    pub equation_c: f64,
+    pub confidence: f32,
+    pub _pad: f32,
+}
+
+/// Mirrors `VNTranslationalAlignmentRaw`.
+#[repr(C)]
+pub struct TranslationalAlignmentRaw {
+    pub tx: f64,
+    pub ty: f64,
+}
+
+/// Mirrors `VNHomographicAlignmentRaw` (3×3 row-major matrix).
+#[repr(C)]
+pub struct HomographicAlignmentRaw {
+    pub m00: f32,
+    pub m01: f32,
+    pub m02: f32,
+    pub m10: f32,
+    pub m11: f32,
+    pub m12: f32,
+    pub m20: f32,
+    pub m21: f32,
+    pub m22: f32,
+    pub _pad: f32,
+}
+
+extern "C" {
+    pub fn vn_detect_animal_body_pose_in_path(
+        path: *const c_char,
+        out_joints: *mut *mut AnimalJointRaw,
+        out_count: *mut isize,
+        out_err: *mut *mut c_char,
+    ) -> i32;
+    pub fn vn_animal_joints_free(ptr: *mut AnimalJointRaw, count: isize);
+
+    pub fn vn_detect_human_body_pose_3d_in_path(
+        path: *const c_char,
+        out_joints: *mut *mut HumanJoint3DRaw,
+        out_count: *mut isize,
+        out_err: *mut *mut c_char,
+    ) -> i32;
+    pub fn vn_human_joints_3d_free(ptr: *mut HumanJoint3DRaw, count: isize);
+
+    pub fn vn_detect_text_rectangles_in_path(
+        path: *const c_char,
+        reports_character_boxes: bool,
+        out_rects: *mut *mut SimpleRectRaw,
+        out_count: *mut isize,
+        out_err: *mut *mut c_char,
+    ) -> i32;
+    pub fn vn_objectness_saliency_in_path(
+        path: *const c_char,
+        out_rects: *mut *mut SimpleRectRaw,
+        out_count: *mut isize,
+        out_err: *mut *mut c_char,
+    ) -> i32;
+    pub fn vn_simple_rects_free(ptr: *mut SimpleRectRaw, count: isize);
+
+    pub fn vn_person_instance_mask_in_path(
+        path: *const c_char,
+        out_width: *mut isize,
+        out_height: *mut isize,
+        out_bytes_per_row: *mut isize,
+        out_data: *mut *mut u8,
+        out_err: *mut *mut c_char,
+    ) -> i32;
+    pub fn vn_mask_buffer_free(ptr: *mut u8, size: isize);
+
+    pub fn vn_detect_trajectories_in_path(
+        path: *const c_char,
+        trajectory_length: isize,
+        out_trajectories: *mut *mut TrajectoryRaw,
+        out_count: *mut isize,
+        out_err: *mut *mut c_char,
+    ) -> i32;
+    pub fn vn_trajectories_free(ptr: *mut TrajectoryRaw, count: isize);
+
+    pub fn vn_register_translational_in_paths(
+        target_path: *const c_char,
+        floating_path: *const c_char,
+        out: *mut TranslationalAlignmentRaw,
+        out_err: *mut *mut c_char,
+    ) -> i32;
+    pub fn vn_register_homographic_in_paths(
+        target_path: *const c_char,
+        floating_path: *const c_char,
+        out: *mut HomographicAlignmentRaw,
+        out_err: *mut *mut c_char,
     ) -> i32;
 }
 

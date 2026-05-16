@@ -89,6 +89,15 @@ pub mod optical_flow;
 #[cfg_attr(docsrs, doc(cfg(feature = "coreml")))]
 pub mod coreml;
 
+// v0.13: new request types
+pub mod animal_body_pose;
+pub mod human_body_pose_3d;
+pub mod text_rectangles;
+pub mod objectness_saliency;
+pub mod person_instance_mask;
+pub mod trajectories;
+pub mod registration;
+
 pub use error::VisionError;
 
 #[cfg(feature = "recognize_text")]
@@ -153,6 +162,16 @@ pub use optical_flow::{generate_optical_flow_in_paths, OpticalFlowAccuracy};
 
 #[cfg(feature = "coreml")]
 pub use coreml::coreml_classify_in_path;
+
+pub use animal_body_pose::{detect_animal_body_pose, AnimalJoint};
+pub use human_body_pose_3d::{detect_human_body_pose_3d, HumanJoint3D};
+pub use text_rectangles::{detect_text_rectangles, TextRect};
+pub use objectness_saliency::{objectness_saliency, ObjectnessRegion};
+pub use person_instance_mask::{person_instance_mask, PersonInstanceMask};
+pub use trajectories::{detect_trajectories, Trajectory};
+pub use registration::{
+    register_homographic, register_translational, HomographicAlignment, TranslationalAlignment,
+};
 
 /// Common imports.
 pub mod prelude {
