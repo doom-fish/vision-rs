@@ -81,6 +81,10 @@ pub mod aesthetics;
 #[cfg_attr(docsrs, doc(cfg(feature = "segmentation")))]
 pub mod segmentation;
 
+#[cfg(feature = "optical_flow")]
+#[cfg_attr(docsrs, doc(cfg(feature = "optical_flow")))]
+pub mod optical_flow;
+
 pub use error::VisionError;
 
 #[cfg(feature = "recognize_text")]
@@ -139,6 +143,9 @@ pub use segmentation::{
     generate_foreground_instance_mask_in_path, generate_person_segmentation_in_path,
     InstanceMask, SegmentationMask, SegmentationQuality,
 };
+
+#[cfg(feature = "optical_flow")]
+pub use optical_flow::{generate_optical_flow_in_paths, OpticalFlowAccuracy};
 
 /// Common imports.
 pub mod prelude {

@@ -1569,3 +1569,49 @@ public func vn_segmentation_mask_free(_ mask: UnsafeMutableRawPointer) {
         typed.pointee.bytes = nil
     }
 }
+
+// MARK: - Optical flow (v0.11)
+//
+// Two-frame request: frame A -> handler, frame B -> targeted request.
+// computationAccuracy: 0=low, 1=medium, 2=high, 3=veryHigh.
+
+@_cdecl("vn_generate_optical_flow_in_paths")
+public func vn_generate_optical_flow_in_paths(
+    _ pathA: UnsafePointer<CChar>,
+    _ pathB: UnsafePointer<CChar>,
+    _ computationAccuracy: Int32,
+    _ outMaskRaw: UnsafeMutableRawPointer,
+    _ outHasValue: UnsafeMutablePointer<Bool>,
+    _ outErrorMessage: UnsafeMutablePointer<UnsafeMutablePointer<CChar>?>?
+) -> Int32 {
+    let outMask = outMaskRaw.assumingMemoryBound(to: VNSegmentationMaskRaw.self)
+    let aStr = String(cString: pathA)
+    let bStr = String(cString: pathB)
+    guard let aImage = loadCGImage(path: aStr) else {
+        outErrorMessage?.pointee = ffiString("could not load image A at \(aStr)")
+        outHasValue.pointee = false
+        return VN_IMAGE_LOAD_FAILED
+    }
+    guard let bImage = loadCGImage(path: bStr) else {
+        outErrorMessage?.pointee = ffiString("could not load image B at \(bStr)")
+        outHasValue.pointee = false
+        return VN_IMAGE_LOAD_FAILED
+    }
+    let handler = VNImageRequestHandler(cgImage: aImage, options: [:])
+    let request = VNGenerateOpticalFlowRequest(targetedCGImage: bImage, options: [:])
+    if let lvl = VNGenerateOpticalFlowRequest.ComputationAccuracy(rawValue: UInt(computationAccuracy)) {
+        request.computationAccuracy = lvl
+    }
+    do { try handler.perform([request]) } catch {
+        outErrorMessage?.pointee = ffiString("optical flow request failed: \(error.localizedDescription)")
+        outHasValue.pointee = false
+        return VN_REQUEST_FAILED
+    }
+    guard let obs = request.results?.first else {
+        outHasValue.pointee = false
+        return VN_OK
+    }
+    outMask.pointee = copyCVPixelBufferToBytes(obs.pixelBuffer)
+    outHasValue.pointee = true
+    return VN_OK
+}

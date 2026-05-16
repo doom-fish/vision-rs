@@ -391,6 +391,15 @@ extern "C" {
 
     pub fn vn_segmentation_mask_free(mask: *mut SegmentationMaskRaw);
 
+    pub fn vn_generate_optical_flow_in_paths(
+        path_a: *const c_char,
+        path_b: *const c_char,
+        computation_accuracy: i32,
+        out_mask: *mut SegmentationMaskRaw,
+        out_has_value: *mut bool,
+        out_error_message: *mut *mut c_char,
+    ) -> i32;
+
     pub fn vn_test_helper_render_text_png(
         text: *const c_char,
         width: i32,

@@ -1,6 +1,6 @@
 [package]
 name = "apple-vision"
-version = "0.10.0"
+version = "0.11.0"
 edition = "2021"
 license = "MIT OR Apache-2.0"
 homepage = "https://github.com/doom-fish/vision-rs"
@@ -39,7 +39,7 @@ default = [
     "recognize_text", "detect_faces", "detect_barcodes", "saliency",
     "face_landmarks", "body_pose", "hand_pose", "contours", "animals",
     "classify", "rectangles", "horizon", "feature_print", "humans",
-    "aesthetics", "segmentation",
+    "aesthetics", "segmentation", "optical_flow",
 ]
 
 # Per-request-type feature flags.
@@ -59,6 +59,7 @@ feature_print = []
 humans = ["detect_faces"]
 aesthetics = ["detect_faces"]
 segmentation = []
+optical_flow = ["segmentation"]
 
 [dependencies]
 apple-cf = { path = "../apple-cf-rs", version = ">=0.1.1, <0.4", default-features = false, features = ["cv", "iosurface"] }
