@@ -9,8 +9,8 @@
 //! OCR, object detection, face landmarks, and other on-device computer
 //! vision tasks.
 //!
-//! v0.14 covers the full Apple Vision request surface, including the
-//! stateful tracking requests.
+//! v0.15 keeps the full Apple Vision request surface and adds an
+//! audited request/observation coverage matrix plus a split Swift bridge.
 
 #![cfg_attr(docsrs, feature(doc_cfg))]
 

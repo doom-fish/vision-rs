@@ -1,6 +1,6 @@
 [package]
 name = "apple-vision"
-version = "0.14.0"
+version = "0.15.0"
 edition = "2021"
 license = "MIT OR Apache-2.0"
 homepage = "https://github.com/doom-fish/vision-rs"
@@ -66,7 +66,7 @@ coreml = ["classify"]
 tracking = ["recognize_text", "rectangles"]
 
 [dependencies]
-apple-cf = { path = "../apple-cf-rs", version = ">=0.4.0, <0.6", default-features = false, features = ["cv", "iosurface"] }
+apple-cf = { version = ">=0.4.0, <0.6", default-features = false, features = ["cv", "iosurface"] }
 libc = "0.2.186"
 
 [dev-dependencies]

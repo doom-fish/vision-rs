@@ -1,24 +1,30 @@
-//! Smoke test for v0.13 missing-request additions: runs each new
+//! Smoke test for the v0.13 missing-request additions: runs each new
 //! API against a fixture image and prints whether the FFI plumbing
 //! returned a syntactically valid response. (We don't assert on
 //! ML output content because that depends on the input image.)
 
 use std::path::PathBuf;
 
+use apple_vision::recognize_text::_test_helper_render_text_png;
 use apple_vision::{
     detect_animal_body_pose, detect_human_body_pose_3d, detect_text_rectangles,
     detect_trajectories, objectness_saliency, person_instance_mask, register_homographic,
     register_translational,
 };
-use apple_vision::recognize_text::_test_helper_render_text_png;
 
 fn fixture() -> PathBuf {
-    let dir = std::env::temp_dir();
-    let p = dir.join("vision_v013_fixture.png");
-    if !p.exists() {
-        _test_helper_render_text_png("hello", 320, 240, &p).expect("render fixture png");
+    let dir = std::env::current_dir()
+        .expect("cwd")
+        .join("target")
+        .join("vision-example-fixtures")
+        .join("04_v013_missing_requests");
+    std::fs::create_dir_all(&dir).expect("fixture dir");
+
+    let path = dir.join("vision_v013_fixture.png");
+    if !path.exists() {
+        _test_helper_render_text_png("hello", 320, 240, &path).expect("render fixture png");
     }
-    p
+    path
 }
 
 fn main() {
@@ -38,7 +44,12 @@ fn main() {
     println!("✅ objectness saliency: {} regions", saliency.len());
 
     match person_instance_mask(&img).expect("person instance mask") {
-        Some(m) => println!("✅ person instance mask: {}x{} ({} bytes)", m.width, m.height, m.as_bytes().len()),
+        Some(mask) => println!(
+            "✅ person instance mask: {}x{} ({} bytes)",
+            mask.width,
+            mask.height,
+            mask.as_bytes().len()
+        ),
         None => println!("✅ person instance mask: no persons (expected for fixture)"),
     }
 
@@ -46,7 +57,10 @@ fn main() {
     println!("✅ trajectories: {} detected", trajectories.len());
 
     let tr = register_translational(&img, &img).expect("translational registration");
-    println!("✅ translational alignment: tx={:.3} ty={:.3}", tr.tx, tr.ty);
+    println!(
+        "✅ translational alignment: tx={:.3} ty={:.3}",
+        tr.tx, tr.ty
+    );
 
     let hr = register_homographic(&img, &img).expect("homographic registration");
     println!("✅ homographic alignment:");

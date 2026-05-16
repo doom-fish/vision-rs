@@ -5,11 +5,17 @@
 //! Run with: `cargo run --example 01_ocr_smoke`
 
 use std::path::PathBuf;
+
 use apple_vision::prelude::*;
 use apple_vision::recognize_text::_test_helper_render_text_png;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let png_path: PathBuf = "/tmp/vision_ocr_smoke.png".into();
+    let fixture_dir = std::env::current_dir()?
+        .join("target")
+        .join("vision-example-fixtures")
+        .join("01_ocr_smoke");
+    std::fs::create_dir_all(&fixture_dir)?;
+    let png_path: PathBuf = fixture_dir.join("vision_ocr_smoke.png");
 
     // Render a known string into a PNG so OCR has something to find.
     let target_text = "HELLO WORLD";

@@ -1,4 +1,4 @@
-//! Smoke test for the v0.14 stateful tracking surface.
+//! Smoke test for the stateful tracking surface.
 //!
 //! Renders a base text fixture plus a slightly translated copy (by adding a
 //! leading space before centering) and runs each tracker once across the two

@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.15.0] - 2026-05-16
+
+### Added (request/observation audit + bridge refactor)
+
+- Added **`COVERAGE.md`** — an audited matrix of every current macOS Vision request + observation type, plus renamed / absent legacy symbols (`VNDetectImageAestheticsScoresRequest`, `VNAnimalDetectionRequest`, `VNTrajectoryRequest`).
+- Split the Swift bridge into logical-area files so every `swift-bridge/Sources/VisionBridge/*.swift` file stays under the screencapturekit-style ~500-line ceiling.
+- Expanded `tests/api_coverage.rs` to account for every current `VN*Request` / `VN*Observation` interface, enforce the multi-file bridge layout, and reject temporary-path usage in public docs/examples.
+- Moved example fixture output from temp paths into `target/vision-example-fixtures/`, matching the headless example pattern used elsewhere in the doom-fish Apple crates.
+- Dropped the sibling-repo `path = "../apple-cf-rs"` override so the crate now validates against the published `apple-cf` 0.5.x release instead of any dirty local checkout.
+
 ## [0.14.0] - 2026-05-16
 
 ### Added (5 stateful tracking request types — completes Vision request coverage)

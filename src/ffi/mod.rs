@@ -1,11 +1,11 @@
 //! Raw FFI declarations matching the Swift bridge in
-//! `swift-bridge/Sources/VisionBridge/Vision.swift`.
+//! `swift-bridge/Sources/VisionBridge/*.swift`.
 
 #![allow(missing_docs, non_camel_case_types, clippy::pub_underscore_fields)]
 
 use core::ffi::{c_char, c_void};
 
-/// Mirrors `VNRecognizedTextRaw` in Vision.swift. Layout-compatible.
+/// Mirrors `VNRecognizedTextRaw` in the Swift bridge. Layout-compatible.
 #[repr(C)]
 pub struct RecognizedTextRaw {
     pub text: *mut c_char,
@@ -16,7 +16,7 @@ pub struct RecognizedTextRaw {
     pub bbox_h: f64,
 }
 
-/// Mirrors `VNDetectedFaceRaw` in Vision.swift. Layout-compatible.
+/// Mirrors `VNDetectedFaceRaw` in the Swift bridge. Layout-compatible.
 #[repr(C)]
 pub struct DetectedFaceRaw {
     pub bbox_x: f64,
@@ -29,7 +29,7 @@ pub struct DetectedFaceRaw {
     pub pitch: f32,
 }
 
-/// Mirrors `VNDetectedBarcodeRaw` in Vision.swift. Layout-compatible.
+/// Mirrors `VNDetectedBarcodeRaw` in the Swift bridge. Layout-compatible.
 #[repr(C)]
 pub struct DetectedBarcodeRaw {
     pub payload: *mut c_char,
@@ -41,7 +41,7 @@ pub struct DetectedBarcodeRaw {
     pub bbox_h: f64,
 }
 
-/// Mirrors `VNSaliencyRegionRaw` in Vision.swift. Layout-compatible.
+/// Mirrors `VNSaliencyRegionRaw` in the Swift bridge. Layout-compatible.
 #[repr(C)]
 pub struct SaliencyRegionRaw {
     pub confidence: f32,
@@ -51,7 +51,7 @@ pub struct SaliencyRegionRaw {
     pub bbox_h: f64,
 }
 
-/// Mirrors `VNFaceLandmarksRaw` in Vision.swift. Layout-compatible.
+/// Mirrors `VNFaceLandmarksRaw` in the Swift bridge. Layout-compatible.
 ///
 /// All `*_count` fields are NUMBER OF POINTS; each point buffer is an
 /// interleaved `[x0, y0, x1, y1, …]` array of doubles, length
@@ -94,7 +94,7 @@ pub struct FaceLandmarksRaw {
     pub right_pupil_count: usize,
 }
 
-/// Mirrors `VNPoseObservationRaw` in Vision.swift. Layout-compatible.
+/// Mirrors `VNPoseObservationRaw` in the Swift bridge. Layout-compatible.
 #[repr(C)]
 pub struct PoseObservationRaw {
     pub bbox_x: f64,
@@ -109,7 +109,7 @@ pub struct PoseObservationRaw {
     pub joint_count: usize,
 }
 
-/// Mirrors `VNContourRaw` in Vision.swift. Layout-compatible.
+/// Mirrors `VNContourRaw` in the Swift bridge. Layout-compatible.
 #[repr(C)]
 pub struct ContourRaw {
     pub point_xs: *mut f64,
@@ -119,7 +119,7 @@ pub struct ContourRaw {
     pub aspect_ratio: f32,
 }
 
-/// Mirrors `VNRecognizedAnimalRaw` in Vision.swift. Layout-compatible.
+/// Mirrors `VNRecognizedAnimalRaw` in the Swift bridge. Layout-compatible.
 #[repr(C)]
 pub struct RecognizedAnimalRaw {
     pub identifier: *mut c_char,
@@ -130,14 +130,14 @@ pub struct RecognizedAnimalRaw {
     pub bbox_h: f64,
 }
 
-/// Mirrors `VNClassificationRaw` in Vision.swift. Layout-compatible.
+/// Mirrors `VNClassificationRaw` in the Swift bridge. Layout-compatible.
 #[repr(C)]
 pub struct ClassificationRaw {
     pub identifier: *mut c_char,
     pub confidence: f32,
 }
 
-/// Mirrors `VNRectangleObservationRaw` in Vision.swift. Layout-compatible.
+/// Mirrors `VNRectangleObservationRaw` in the Swift bridge. Layout-compatible.
 #[repr(C)]
 pub struct RectangleObservationRaw {
     pub bbox_x: f64,
@@ -155,7 +155,7 @@ pub struct RectangleObservationRaw {
     pub br_y: f64,
 }
 
-/// Mirrors `VNFeaturePrintRaw` in Vision.swift. Layout-compatible.
+/// Mirrors `VNFeaturePrintRaw` in the Swift bridge. Layout-compatible.
 #[repr(C)]
 pub struct FeaturePrintRaw {
     pub element_type: i32,
@@ -163,7 +163,7 @@ pub struct FeaturePrintRaw {
     pub bytes: *mut c_void,
 }
 
-/// Mirrors `VNHumanObservationRaw` in Vision.swift. Layout-compatible.
+/// Mirrors `VNHumanObservationRaw` in the Swift bridge. Layout-compatible.
 #[repr(C)]
 pub struct HumanObservationRaw {
     pub bbox_x: f64,
@@ -174,14 +174,14 @@ pub struct HumanObservationRaw {
     pub upper_body_only: bool,
 }
 
-/// Mirrors `VNAestheticsScoresRaw` in Vision.swift. Layout-compatible.
+/// Mirrors `VNAestheticsScoresRaw` in the Swift bridge. Layout-compatible.
 #[repr(C)]
 pub struct AestheticsScoresRaw {
     pub overall_score: f32,
     pub is_utility: bool,
 }
 
-/// Mirrors `VNFaceQualityRaw` in Vision.swift. Layout-compatible.
+/// Mirrors `VNFaceQualityRaw` in the Swift bridge. Layout-compatible.
 #[repr(C)]
 pub struct FaceQualityRaw {
     pub bbox_x: f64,
@@ -193,7 +193,7 @@ pub struct FaceQualityRaw {
     pub has_quality: bool,
 }
 
-/// Mirrors `VNSegmentationMaskRaw` in Vision.swift. Layout-compatible.
+/// Mirrors `VNSegmentationMaskRaw` in the Swift bridge. Layout-compatible.
 #[repr(C)]
 pub struct SegmentationMaskRaw {
     pub width: usize,
@@ -418,7 +418,7 @@ extern "C" {
 
 // ===== v0.13 missing requests =====
 
-/// Mirrors `VNAnimalJointRaw` in MissingRequests.swift.
+/// Mirrors `VNAnimalJointRaw` in the Swift bridge.
 #[repr(C)]
 pub struct AnimalJointRaw {
     pub name: *mut c_char,
@@ -550,7 +550,7 @@ extern "C" {
     ) -> i32;
 }
 
-// ===== v0.14 tracking requests =====
+// ===== tracking requests =====
 
 extern "C" {
     pub fn vn_object_tracker_create(

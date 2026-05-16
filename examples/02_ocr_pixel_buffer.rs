@@ -7,15 +7,23 @@
 //!
 //! Run with: `cargo run --example 02_ocr_pixel_buffer`
 
+use std::path::PathBuf;
+
 use apple_cf::cv::CVPixelBuffer;
 use apple_cf::iosurface::{IOSurface, IOSurfaceLockOptions};
 use apple_vision::prelude::*;
 use apple_vision::recognize_text::_test_helper_render_text_png;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let png_path = "/tmp/vision_pixbuf_smoke.png";
+    let fixture_dir = std::env::current_dir()?
+        .join("target")
+        .join("vision-example-fixtures")
+        .join("02_ocr_pixel_buffer");
+    std::fs::create_dir_all(&fixture_dir)?;
+    let png_path: PathBuf = fixture_dir.join("vision_pixbuf_smoke.png");
+
     let target_text = "ZERO COPY OCR";
-    _test_helper_render_text_png(target_text, 480, 120, std::path::Path::new(png_path))?;
+    _test_helper_render_text_png(target_text, 480, 120, &png_path)?;
 
     // We can't easily load a PNG into a CVPixelBuffer from Rust without
     // CG bindings, so fake it: synthesise the same image as a BGRA
@@ -66,7 +74,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     println!("\n--- recognize_in_path (file-based, for comparison) ---");
-    let path_results = recognizer.recognize_in_path(png_path)?;
+    let path_results = recognizer.recognize_in_path(&png_path)?;
     println!("Got {} observation(s) from PNG:", path_results.len());
     for obs in &path_results {
         println!("  [{:.2}] '{}'", obs.confidence, obs.text);

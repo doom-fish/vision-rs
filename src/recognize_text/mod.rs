@@ -19,7 +19,6 @@ pub enum RecognitionLevel {
     Accurate,
 }
 
-
 impl RecognitionLevel {
     const fn as_raw(self) -> i32 {
         match self {
@@ -59,7 +58,7 @@ pub struct RecognizedText {
 /// let recognizer = TextRecognizer::new()
 ///     .with_recognition_level(RecognitionLevel::Accurate)
 ///     .with_language_correction(true);
-/// let observations = recognizer.recognize_in_path("/tmp/screenshot.png")?;
+/// let observations = recognizer.recognize_in_path("screenshot.png")?;
 /// for obs in &observations {
 ///     println!("{:.2} {:?}: {}", obs.confidence, obs.bounding_box, obs.text);
 /// }

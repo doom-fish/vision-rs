@@ -3,20 +3,28 @@
 //! photograph of your choosing.
 //!
 //! Run with: `cargo run --example 03_face_detect`
-//! With a custom image: `cargo run --example 03_face_detect -- /tmp/portrait.jpg`
+//! With a custom image: `cargo run --example 03_face_detect -- ~/Pictures/portrait.jpg`
 
 use std::path::PathBuf;
+
 use apple_vision::detect_faces::FaceDetector;
 use apple_vision::recognize_text::_test_helper_render_text_png;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let path: PathBuf = std::env::args().nth(1).map_or_else(
         || {
+            let fixture_dir = std::env::current_dir()
+                .expect("cwd")
+                .join("target")
+                .join("vision-example-fixtures")
+                .join("03_face_detect");
+            std::fs::create_dir_all(&fixture_dir).expect("fixture dir");
+
             // Default: render a blank "page" — face detection should
             // return zero faces on it. Verifies the API plumbing works.
-            let p: PathBuf = "/tmp/vision_face_smoke.png".into();
-            _test_helper_render_text_png("", 320, 240, &p).expect("render");
-            p
+            let path = fixture_dir.join("vision_face_smoke.png");
+            _test_helper_render_text_png("", 320, 240, &path).expect("render");
+            path
         },
         PathBuf::from,
     );
