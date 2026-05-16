@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.15.1] - 2026-05-16
+
+### Added (explicit request-processing wrappers)
+
+- Added **`Request`** / **`RequestKind`** — an explicit `VNRequest` wrapper for OCR pipelines, including revision + background/CPU configuration.
+- Added **`Observation`** / **`RecognizedTextObservation`** — shared `VNObservation` metadata (`uuid`, confidence, optional time-range) alongside recognized text payloads.
+- Added **`ImageRequestHandler`** and **`SequenceRequestHandler`** — dedicated wrappers for `VNImageRequestHandler` and retained `VNSequenceRequestHandler` state.
+- Added **`VideoProcessor`**, **`VideoProcessingOptions`**, and **`VideoCadence`** — a `VNVideoProcessor` OCR surface for video files.
+- Added smoke test **`tests/request_processing.rs`** and public example **`06_request_processing`**.
+
 ## [0.15.0] - 2026-05-16
 
 ### Added (request/observation audit + bridge refactor)

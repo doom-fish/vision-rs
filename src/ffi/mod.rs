@@ -16,6 +16,21 @@ pub struct RecognizedTextRaw {
     pub bbox_h: f64,
 }
 
+/// Mirrors `VNRequestObservationRaw` in the Swift bridge. Layout-compatible.
+#[repr(C)]
+pub struct RequestObservationRaw {
+    pub uuid: *mut c_char,
+    pub text: *mut c_char,
+    pub confidence: f32,
+    pub has_time_range: bool,
+    pub time_range_start_seconds: f64,
+    pub time_range_duration_seconds: f64,
+    pub bbox_x: f64,
+    pub bbox_y: f64,
+    pub bbox_w: f64,
+    pub bbox_h: f64,
+}
+
 /// Mirrors `VNDetectedFaceRaw` in the Swift bridge. Layout-compatible.
 #[repr(C)]
 pub struct DetectedFaceRaw {
@@ -225,6 +240,57 @@ extern "C" {
 
     pub fn vn_recognized_text_free(array: *mut c_void, count: usize);
 
+    pub fn vn_image_request_handler_perform_text_request(
+        image_path: *const c_char,
+        recognition_level: i32,
+        uses_language_correction: bool,
+        prefer_background_processing: bool,
+        uses_cpu_only: bool,
+        revision: usize,
+        has_revision: bool,
+        out_array: *mut *mut c_void,
+        out_count: *mut usize,
+        out_error_message: *mut *mut c_char,
+    ) -> i32;
+
+    pub fn vn_sequence_request_handler_create(
+        out_handle: *mut *mut c_void,
+        out_error_message: *mut *mut c_char,
+    ) -> i32;
+
+    pub fn vn_sequence_request_handler_perform_text_request(
+        handle: *mut c_void,
+        image_path: *const c_char,
+        recognition_level: i32,
+        uses_language_correction: bool,
+        prefer_background_processing: bool,
+        uses_cpu_only: bool,
+        revision: usize,
+        has_revision: bool,
+        out_array: *mut *mut c_void,
+        out_count: *mut usize,
+        out_error_message: *mut *mut c_char,
+    ) -> i32;
+
+    pub fn vn_sequence_request_handler_free(handle: *mut c_void);
+
+    pub fn vn_video_processor_analyze_text_request(
+        video_path: *const c_char,
+        recognition_level: i32,
+        uses_language_correction: bool,
+        prefer_background_processing: bool,
+        uses_cpu_only: bool,
+        revision: usize,
+        has_revision: bool,
+        cadence_kind: i32,
+        cadence_value: f64,
+        out_array: *mut *mut c_void,
+        out_count: *mut usize,
+        out_error_message: *mut *mut c_char,
+    ) -> i32;
+
+    pub fn vn_request_observations_free(array: *mut c_void, count: usize);
+
     pub fn vn_detect_faces_in_path(
         path: *const c_char,
         out_array: *mut *mut c_void,
@@ -412,6 +478,16 @@ extern "C" {
         text: *const c_char,
         width: i32,
         height: i32,
+        output_path: *const c_char,
+    ) -> i32;
+
+    pub fn vn_test_helper_render_text_video(
+        first_text: *const c_char,
+        second_text: *const c_char,
+        width: i32,
+        height: i32,
+        fps: i32,
+        frames_per_text: i32,
         output_path: *const c_char,
     ) -> i32;
 }

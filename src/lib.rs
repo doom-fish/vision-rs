@@ -9,8 +9,9 @@
 //! OCR, object detection, face landmarks, and other on-device computer
 //! vision tasks.
 //!
-//! v0.15 keeps the full Apple Vision request surface and adds an
-//! audited request/observation coverage matrix plus a split Swift bridge.
+//! v0.15.1 keeps the full Apple Vision request surface, adds explicit
+//! request-handler/video-processing wrappers, and ships an audited coverage
+//! matrix plus a split Swift bridge.
 
 #![cfg_attr(docsrs, feature(doc_cfg))]
 
@@ -20,6 +21,10 @@ pub mod ffi;
 #[cfg(feature = "recognize_text")]
 #[cfg_attr(docsrs, doc(cfg(feature = "recognize_text")))]
 pub mod recognize_text;
+
+#[cfg(feature = "recognize_text")]
+#[cfg_attr(docsrs, doc(cfg(feature = "recognize_text")))]
+pub mod processing;
 
 #[cfg(feature = "detect_faces")]
 #[cfg_attr(docsrs, doc(cfg(feature = "detect_faces")))]
@@ -103,6 +108,12 @@ pub mod trajectories;
 pub mod registration;
 
 pub use error::VisionError;
+
+#[cfg(feature = "recognize_text")]
+pub use processing::{
+    ImageRequestHandler, Observation, RecognizedTextObservation, Request, RequestKind,
+    SequenceRequestHandler, TimeRange, VideoCadence, VideoProcessingOptions, VideoProcessor,
+};
 
 #[cfg(feature = "recognize_text")]
 pub use recognize_text::{BoundingBox, RecognitionLevel, RecognizedText, TextRecognizer};
@@ -214,6 +225,11 @@ pub mod prelude {
     pub use crate::rectangles::{
         detect_document_segmentation_in_path, detect_rectangles_in_path, RectangleObservation,
         RectangleOptions,
+    };
+    #[cfg(feature = "recognize_text")]
+    pub use crate::processing::{
+        ImageRequestHandler, Observation, RecognizedTextObservation, Request, RequestKind,
+        SequenceRequestHandler, TimeRange, VideoCadence, VideoProcessingOptions, VideoProcessor,
     };
     #[cfg(feature = "recognize_text")]
     pub use crate::recognize_text::{

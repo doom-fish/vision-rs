@@ -1,6 +1,6 @@
 [package]
 name = "apple-vision"
-version = "0.15.0"
+version = "0.15.1"
 edition = "2021"
 license = "MIT OR Apache-2.0"
 homepage = "https://github.com/doom-fish/vision-rs"
@@ -96,6 +96,10 @@ required-features = ["detect_faces", "recognize_text"]
 [[example]]
 name = "05_tracking"
 required-features = ["tracking"]
+
+[[example]]
+name = "06_request_processing"
+required-features = ["recognize_text"]
 
 [profile.release]
 debug = "full"
