@@ -25,6 +25,10 @@ pub mod recognize_text;
 #[cfg_attr(docsrs, doc(cfg(feature = "detect_faces")))]
 pub mod detect_faces;
 
+#[cfg(feature = "detect_barcodes")]
+#[cfg_attr(docsrs, doc(cfg(feature = "detect_barcodes")))]
+pub mod detect_barcodes;
+
 pub use error::VisionError;
 
 #[cfg(feature = "recognize_text")]
@@ -33,8 +37,13 @@ pub use recognize_text::{BoundingBox, RecognitionLevel, RecognizedText, TextReco
 #[cfg(feature = "detect_faces")]
 pub use detect_faces::{DetectedFace, FaceDetector};
 
+#[cfg(feature = "detect_barcodes")]
+pub use detect_barcodes::{detect_barcodes_in_path, DetectedBarcode};
+
 /// Common imports.
 pub mod prelude {
+    #[cfg(feature = "detect_barcodes")]
+    pub use crate::detect_barcodes::{detect_barcodes_in_path, DetectedBarcode};
     #[cfg(feature = "detect_faces")]
     pub use crate::detect_faces::{DetectedFace, FaceDetector};
     pub use crate::error::VisionError;
