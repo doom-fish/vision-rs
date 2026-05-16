@@ -41,6 +41,16 @@ pub struct DetectedBarcodeRaw {
     pub bbox_h: f64,
 }
 
+/// Mirrors `VNSaliencyRegionRaw` in Vision.swift. Layout-compatible.
+#[repr(C)]
+pub struct SaliencyRegionRaw {
+    pub confidence: f32,
+    pub bbox_x: f64,
+    pub bbox_y: f64,
+    pub bbox_w: f64,
+    pub bbox_h: f64,
+}
+
 extern "C" {
     pub fn vn_string_free(s: *mut c_char);
 
@@ -88,6 +98,15 @@ extern "C" {
     ) -> i32;
 
     pub fn vn_detected_barcodes_free(array: *mut c_void, count: usize);
+
+    pub fn vn_attention_saliency_in_path(
+        path: *const c_char,
+        out_array: *mut *mut c_void,
+        out_count: *mut usize,
+        out_error_message: *mut *mut c_char,
+    ) -> i32;
+
+    pub fn vn_saliency_regions_free(array: *mut c_void, count: usize);
 
     pub fn vn_test_helper_render_text_png(
         text: *const c_char,
