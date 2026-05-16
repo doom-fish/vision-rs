@@ -395,6 +395,86 @@ public func vn_detected_barcodes_free(_ array: UnsafeMutableRawPointer?, _ count
     typed.deallocate()
 }
 
+// MARK: - Saliency (v0.5)
+
+/// One salient region. Matches `SaliencyRegionRaw` in src/ffi/mod.rs.
+@frozen
+public struct VNSaliencyRegionRaw {
+    /// Confidence in 0.0...1.0.
+    public var confidence: Float
+    /// Normalised bounding box of the salient region.
+    public var bbox_x: Double
+    public var bbox_y: Double
+    public var bbox_w: Double
+    public var bbox_h: Double
+}
+
+/// Run attention-based saliency detection. Returns 1 result per
+/// `VNSaliencyImageObservation`, each containing zero or more salient
+/// objects. The output array packs the salient-object rectangles flat.
+@_cdecl("vn_attention_saliency_in_path")
+public func vn_attention_saliency_in_path(
+    _ imagePath: UnsafePointer<CChar>,
+    _ outArray: UnsafeMutablePointer<UnsafeMutableRawPointer?>,
+    _ outCount: UnsafeMutablePointer<Int>,
+    _ outErrorMessage: UnsafeMutablePointer<UnsafeMutablePointer<CChar>?>?
+) -> Int32 {
+    let pathStr = String(cString: imagePath)
+    let url = URL(fileURLWithPath: pathStr)
+    guard let ciImage = CIImage(contentsOf: url) else {
+        outErrorMessage?.pointee = ffiString("Could not load image at \(pathStr)")
+        return VN_IMAGE_LOAD_FAILED
+    }
+    let handler = VNImageRequestHandler(ciImage: ciImage, options: [:])
+    let request = VNGenerateAttentionBasedSaliencyImageRequest()
+    do {
+        try handler.perform([request])
+    } catch {
+        outErrorMessage?.pointee = ffiString("VNImageRequestHandler.perform(saliency) failed: \(error.localizedDescription)")
+        return VN_REQUEST_FAILED
+    }
+    guard let results = request.results, !results.isEmpty else {
+        outArray.pointee = nil
+        outCount.pointee = 0
+        return VN_OK
+    }
+    // Flatten: each observation can carry multiple salient objects.
+    var flat: [VNSaliencyRegionRaw] = []
+    for obs in results {
+        if let objects = obs.salientObjects {
+            for obj in objects {
+                flat.append(VNSaliencyRegionRaw(
+                    confidence: obj.confidence,
+                    bbox_x: Double(obj.boundingBox.origin.x),
+                    bbox_y: Double(obj.boundingBox.origin.y),
+                    bbox_w: Double(obj.boundingBox.size.width),
+                    bbox_h: Double(obj.boundingBox.size.height)
+                ))
+            }
+        }
+    }
+    if flat.isEmpty {
+        outArray.pointee = nil
+        outCount.pointee = 0
+        return VN_OK
+    }
+    let buffer = UnsafeMutablePointer<VNSaliencyRegionRaw>.allocate(capacity: flat.count)
+    for (i, r) in flat.enumerated() {
+        buffer.advanced(by: i).initialize(to: r)
+    }
+    outArray.pointee = UnsafeMutableRawPointer(buffer)
+    outCount.pointee = flat.count
+    return VN_OK
+}
+
+@_cdecl("vn_saliency_regions_free")
+public func vn_saliency_regions_free(_ array: UnsafeMutableRawPointer?, _ count: Int) {
+    guard let array = array else { return }
+    let typed = array.assumingMemoryBound(to: VNSaliencyRegionRaw.self)
+    typed.deallocate()
+    _ = count
+}
+
 /// Test helper used by smoke tests: renders `text` into a PNG at `outputPath`
 /// using a system font, so OCR can be exercised without bundling fixture files.
 ///
