@@ -1,0 +1,79 @@
+//! Animal recognition (`VNRecognizeAnimalsRequest`).
+//!
+//! Currently the SDK supports `"Dog"` and `"Cat"` identifiers.
+
+use core::ffi::c_char;
+use core::ptr;
+use std::ffi::CString;
+use std::path::Path;
+
+use crate::error::{from_swift, VisionError};
+use crate::ffi;
+use crate::recognize_text::BoundingBox;
+
+/// One detected animal.
+#[derive(Debug, Clone, PartialEq)]
+pub struct RecognizedAnimal {
+    /// Apple's identifier string — e.g. `"Dog"`, `"Cat"`.
+    pub identifier: String,
+    pub confidence: f32,
+    pub bounding_box: BoundingBox,
+}
+
+/// Recognise animals in the image at `path`.
+///
+/// # Errors
+///
+/// Returns [`VisionError::ImageLoadFailed`] / [`VisionError::RequestFailed`].
+pub fn recognize_animals_in_path(
+    path: impl AsRef<Path>,
+) -> Result<Vec<RecognizedAnimal>, VisionError> {
+    let path_str = path
+        .as_ref()
+        .to_str()
+        .ok_or_else(|| VisionError::InvalidArgument("non-UTF-8 path".into()))?;
+    let path_c = CString::new(path_str)
+        .map_err(|e| VisionError::InvalidArgument(format!("path NUL byte: {e}")))?;
+
+    let mut out_array: *mut core::ffi::c_void = ptr::null_mut();
+    let mut out_count: usize = 0;
+    let mut err_msg: *mut c_char = ptr::null_mut();
+    let status = unsafe {
+        ffi::vn_recognize_animals_in_path(
+            path_c.as_ptr(),
+            &mut out_array,
+            &mut out_count,
+            &mut err_msg,
+        )
+    };
+    if status != ffi::status::OK {
+        return Err(unsafe { from_swift(status, err_msg) });
+    }
+    if out_array.is_null() || out_count == 0 {
+        return Ok(Vec::new());
+    }
+    let typed = out_array.cast::<ffi::RecognizedAnimalRaw>();
+    let mut v = Vec::with_capacity(out_count);
+    for i in 0..out_count {
+        let raw = unsafe { &*typed.add(i) };
+        let identifier = if raw.identifier.is_null() {
+            String::new()
+        } else {
+            unsafe { core::ffi::CStr::from_ptr(raw.identifier) }
+                .to_string_lossy()
+                .into_owned()
+        };
+        v.push(RecognizedAnimal {
+            identifier,
+            confidence: raw.confidence,
+            bounding_box: BoundingBox {
+                x: raw.bbox_x,
+                y: raw.bbox_y,
+                width: raw.bbox_w,
+                height: raw.bbox_h,
+            },
+        });
+    }
+    unsafe { ffi::vn_recognized_animals_free(out_array, out_count) };
+    Ok(v)
+}
