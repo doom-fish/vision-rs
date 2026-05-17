@@ -1,12 +1,13 @@
 # apple-vision coverage audit (vs MacOSX26.2.sdk)
 
 SDK_PUBLIC_SYMBOLS: 249
-VERIFIED: 77
-GAPS: 145
+VERIFIED: 222
+GAPS: 0
 EXEMPT: 27
-COVERAGE_PCT: 30.92%
+COVERAGE_PCT: 89.16%
 
 Methodology note: per the audit instructions, this inventory covers Vision interfaces, protocols, enum/struct typedefs, exported constants, and top-level C functions. Alias-only typedefs are not counted separately. A symbol is **VERIFIED** only when `apple-vision` exposes a dedicated public Rust surface for it; symbols used only inside the Swift bridge or flattened into crate-specific data structures remain in **GAPS**.
+
 ## 🟢 VERIFIED
 | Symbol | Kind | Header | Wrapped by |
 | --- | --- | --- | --- |
@@ -87,155 +88,155 @@ Methodology note: per the audit instructions, this inventory covers Vision inter
 | VNTrajectoryObservation | interface | VNObservation.h:314 | Exposed through `Trajectory` (detected/projected points, equation coefficients, confidence). |
 | VNTranslationalImageRegistrationRequest | interface | VNImageRegistrationRequest.h:31 | Exposed as `register_translational`. |
 | VNVideoProcessor | interface | VNVideoProcessor.h:75 | Exposed as `VideoProcessor`, including `VideoProcessingOptions` / `VideoCadence` for OCR over video files. |
+| VNAnimalBodyPoseObservationJointNameLeftEarTop | const | VNTypes.h:133 | Wrapped by `animal_body_pose::AnimalBodyPoseJointName` and surfaced from `AnimalJoint::joint_name()` |
+| VNAnimalBodyPoseObservationJointsGroupNameHead | const | VNTypes.h:162 | Wrapped by `animal_body_pose::AnimalBodyPoseJointGroupName` |
+| VNAnimalIdentifierCat | const | VNRecognizeAnimalsRequest.h:18 | Wrapped by `sdk::AnimalIdentifier` and `animals::RecognizedAnimal::identifier_kind()` |
+| VNAnimalIdentifierDog | const | VNRecognizeAnimalsRequest.h:17 | Wrapped by `sdk::AnimalIdentifier` and `animals::RecognizedAnimal::identifier_kind()` |
+| VNBarcodeCompositeType | enum | VNTypes.h:115 | Wrapped by `sdk::BarcodeCompositeType` and re-exported alongside barcode detection helpers. |
+| VNBarcodeSymbologyAztec | const | VNTypes.h:52 | Wrapped by `sdk::BarcodeSymbology` and `detect_barcodes::DetectedBarcode::symbology_kind()` |
+| VNBarcodeSymbologyCodabar | const | VNTypes.h:70 | Wrapped by `sdk::BarcodeSymbology` and `detect_barcodes::DetectedBarcode::symbology_kind()` |
+| VNBarcodeSymbologyCode128 | const | VNTypes.h:59 | Wrapped by `sdk::BarcodeSymbology` and `detect_barcodes::DetectedBarcode::symbology_kind()` |
+| VNBarcodeSymbologyCode39 | const | VNTypes.h:53 | Wrapped by `sdk::BarcodeSymbology` and `detect_barcodes::DetectedBarcode::symbology_kind()` |
+| VNBarcodeSymbologyCode39Checksum | const | VNTypes.h:54 | Wrapped by `sdk::BarcodeSymbology` and `detect_barcodes::DetectedBarcode::symbology_kind()` |
+| VNBarcodeSymbologyCode39FullASCII | const | VNTypes.h:55 | Wrapped by `sdk::BarcodeSymbology` and `detect_barcodes::DetectedBarcode::symbology_kind()` |
+| VNBarcodeSymbologyCode39FullASCIIChecksum | const | VNTypes.h:56 | Wrapped by `sdk::BarcodeSymbology` and `detect_barcodes::DetectedBarcode::symbology_kind()` |
+| VNBarcodeSymbologyCode93 | const | VNTypes.h:57 | Wrapped by `sdk::BarcodeSymbology` and `detect_barcodes::DetectedBarcode::symbology_kind()` |
+| VNBarcodeSymbologyCode93i | const | VNTypes.h:58 | Wrapped by `sdk::BarcodeSymbology` and `detect_barcodes::DetectedBarcode::symbology_kind()` |
+| VNBarcodeSymbologyDataMatrix | const | VNTypes.h:60 | Wrapped by `sdk::BarcodeSymbology` and `detect_barcodes::DetectedBarcode::symbology_kind()` |
+| VNBarcodeSymbologyEAN13 | const | VNTypes.h:62 | Wrapped by `sdk::BarcodeSymbology` and `detect_barcodes::DetectedBarcode::symbology_kind()` |
+| VNBarcodeSymbologyEAN8 | const | VNTypes.h:61 | Wrapped by `sdk::BarcodeSymbology` and `detect_barcodes::DetectedBarcode::symbology_kind()` |
+| VNBarcodeSymbologyGS1DataBar | const | VNTypes.h:71 | Wrapped by `sdk::BarcodeSymbology` and `detect_barcodes::DetectedBarcode::symbology_kind()` |
+| VNBarcodeSymbologyGS1DataBarExpanded | const | VNTypes.h:72 | Wrapped by `sdk::BarcodeSymbology` and `detect_barcodes::DetectedBarcode::symbology_kind()` |
+| VNBarcodeSymbologyGS1DataBarLimited | const | VNTypes.h:73 | Wrapped by `sdk::BarcodeSymbology` and `detect_barcodes::DetectedBarcode::symbology_kind()` |
+| VNBarcodeSymbologyI2of5 | const | VNTypes.h:63 | Wrapped by `sdk::BarcodeSymbology` and `detect_barcodes::DetectedBarcode::symbology_kind()` |
+| VNBarcodeSymbologyI2of5Checksum | const | VNTypes.h:64 | Wrapped by `sdk::BarcodeSymbology` and `detect_barcodes::DetectedBarcode::symbology_kind()` |
+| VNBarcodeSymbologyITF14 | const | VNTypes.h:65 | Wrapped by `sdk::BarcodeSymbology` and `detect_barcodes::DetectedBarcode::symbology_kind()` |
+| VNBarcodeSymbologyMSIPlessey | const | VNTypes.h:76 | Wrapped by `sdk::BarcodeSymbology` and `detect_barcodes::DetectedBarcode::symbology_kind()` |
+| VNBarcodeSymbologyMicroPDF417 | const | VNTypes.h:74 | Wrapped by `sdk::BarcodeSymbology` and `detect_barcodes::DetectedBarcode::symbology_kind()` |
+| VNBarcodeSymbologyMicroQR | const | VNTypes.h:75 | Wrapped by `sdk::BarcodeSymbology` and `detect_barcodes::DetectedBarcode::symbology_kind()` |
+| VNBarcodeSymbologyPDF417 | const | VNTypes.h:66 | Wrapped by `sdk::BarcodeSymbology` and `detect_barcodes::DetectedBarcode::symbology_kind()` |
+| VNBarcodeSymbologyQR | const | VNTypes.h:67 | Wrapped by `sdk::BarcodeSymbology` and `detect_barcodes::DetectedBarcode::symbology_kind()` |
+| VNBarcodeSymbologyUPCE | const | VNTypes.h:68 | Wrapped by `sdk::BarcodeSymbology` and `detect_barcodes::DetectedBarcode::symbology_kind()` |
+| VNCircle | interface | VNGeometry.h:199 | Wrapped by `geometry::VisionCircle` |
+| VNComputeStageMain | const | VNTypes.h:36 | Wrapped by `sdk::ComputeStage` and surfaced from `processing::Request::supported_compute_stages()` |
+| VNComputeStagePostProcessing | const | VNTypes.h:42 | Wrapped by `sdk::ComputeStage` and surfaced from `processing::Request::supported_compute_stages()` |
+| VNContour | interface | VNGeometry.h:256 | Wrapped by `contours::Contour` and the explicit `VisionContour` alias. |
+| VNDetectedPoint | interface | VNDetectedPoint.h:21 | Wrapped by `recognized_points::VisionDetectedPoint`. |
+| VNElementType | enum | VNTypes.h:80 | Wrapped by `sdk::ElementType`. |
+| VNElementTypeSize | function | VNUtils.h:195 | Wrapped by `geometry::element_type_size`. |
+| VNErrorCode | enum | VNError.h:14 | Wrapped by `sdk::VisionErrorCode`. |
+| VNErrorDomain | const | VNError.h:11 | Wrapped by `sdk::VISION_ERROR_DOMAIN`. |
+| VNFaceLandmarkRegion | interface | VNFaceLandmarks.h:26 | Wrapped by `face_landmarks::FaceLandmarkRegion`. |
+| VNFaceLandmarkRegion2D | interface | VNFaceLandmarks.h:45 | Wrapped by `face_landmarks::FaceLandmarkRegion2D`. |
+| VNFaceLandmarks | interface | VNFaceLandmarks.h:97 | Wrapped by `face_landmarks::FaceLandmarks`. |
+| VNFaceLandmarks2D | interface | VNFaceLandmarks.h:116 | Wrapped by `face_landmarks::FaceLandmarks2D`. |
+| VNFaceObservationAccepting | protocol | VNFaceObservationAccepting.h:21 | Wrapped by the `face_landmarks::FaceObservationAccepting` trait and `FaceLandmarksRequest`. |
+| VNGeometryUtils | interface | VNGeometryUtils.h:24 | Wrapped by the pure-Rust `geometry::VisionGeometryUtils` helper surface. |
+| VNHumanBodyPose3DObservationHeightEstimation | enum | VNObservation.h:881 | Wrapped by the public alias `human_body_pose_3d::HumanBodyPose3DObservationHeightEstimation`. |
+| VNHumanBodyPose3DObservationJointNameCenterHead | const | VNTypes.h:183 | Wrapped by `human_body_pose_3d::HumanBodyPose3DJointName`. |
+| VNHumanBodyPose3DObservationJointNameCenterShoulder | const | VNTypes.h:182 | Wrapped by `human_body_pose_3d::HumanBodyPose3DJointName`. |
+| VNHumanBodyPose3DObservationJointNameLeftAnkle | const | VNTypes.h:180 | Wrapped by `human_body_pose_3d::HumanBodyPose3DJointName`. |
+| VNHumanBodyPose3DObservationJointNameLeftElbow | const | VNTypes.h:186 | Wrapped by `human_body_pose_3d::HumanBodyPose3DJointName`. |
+| VNHumanBodyPose3DObservationJointNameLeftHip | const | VNTypes.h:178 | Wrapped by `human_body_pose_3d::HumanBodyPose3DJointName`. |
+| VNHumanBodyPose3DObservationJointNameLeftKnee | const | VNTypes.h:179 | Wrapped by `human_body_pose_3d::HumanBodyPose3DJointName`. |
+| VNHumanBodyPose3DObservationJointNameLeftShoulder | const | VNTypes.h:185 | Wrapped by `human_body_pose_3d::HumanBodyPose3DJointName`. |
+| VNHumanBodyPose3DObservationJointNameLeftWrist | const | VNTypes.h:187 | Wrapped by `human_body_pose_3d::HumanBodyPose3DJointName`. |
+| VNHumanBodyPose3DObservationJointNameRightAnkle | const | VNTypes.h:177 | Wrapped by `human_body_pose_3d::HumanBodyPose3DJointName`. |
+| VNHumanBodyPose3DObservationJointNameRightElbow | const | VNTypes.h:189 | Wrapped by `human_body_pose_3d::HumanBodyPose3DJointName`. |
+| VNHumanBodyPose3DObservationJointNameRightHip | const | VNTypes.h:175 | Wrapped by `human_body_pose_3d::HumanBodyPose3DJointName`. |
+| VNHumanBodyPose3DObservationJointNameRightKnee | const | VNTypes.h:176 | Wrapped by `human_body_pose_3d::HumanBodyPose3DJointName`. |
+| VNHumanBodyPose3DObservationJointNameRightShoulder | const | VNTypes.h:188 | Wrapped by `human_body_pose_3d::HumanBodyPose3DJointName`. |
+| VNHumanBodyPose3DObservationJointNameRightWrist | const | VNTypes.h:190 | Wrapped by `human_body_pose_3d::HumanBodyPose3DJointName`. |
+| VNHumanBodyPose3DObservationJointNameRoot | const | VNTypes.h:174 | Wrapped by `human_body_pose_3d::HumanBodyPose3DJointName`. |
+| VNHumanBodyPose3DObservationJointNameSpine | const | VNTypes.h:181 | Wrapped by `human_body_pose_3d::HumanBodyPose3DJointName`. |
+| VNHumanBodyPose3DObservationJointNameTopHead | const | VNTypes.h:184 | Wrapped by `human_body_pose_3d::HumanBodyPose3DJointName`. |
+| VNHumanBodyPose3DObservationJointsGroupNameHead | const | VNTypes.h:193 | Wrapped by `human_body_pose_3d::HumanBodyPose3DJointGroupName`. |
+| VNHumanBodyPoseObservationJointNameLeftAnkle | const | VNDetectHumanBodyPoseRequest.h:83 | Wrapped by `body_pose::HumanBodyPoseJointName`. |
+| VNHumanBodyPoseObservationJointNameLeftEar | const | VNDetectHumanBodyPoseRequest.h:63 | Wrapped by `body_pose::HumanBodyPoseJointName`. |
+| VNHumanBodyPoseObservationJointNameLeftElbow | const | VNDetectHumanBodyPoseRequest.h:70 | Wrapped by `body_pose::HumanBodyPoseJointName`. |
+| VNHumanBodyPoseObservationJointNameLeftEye | const | VNDetectHumanBodyPoseRequest.h:60 | Wrapped by `body_pose::HumanBodyPoseJointName`. |
+| VNHumanBodyPoseObservationJointNameLeftHip | const | VNDetectHumanBodyPoseRequest.h:76 | Wrapped by `body_pose::HumanBodyPoseJointName`. |
+| VNHumanBodyPoseObservationJointNameLeftKnee | const | VNDetectHumanBodyPoseRequest.h:80 | Wrapped by `body_pose::HumanBodyPoseJointName`. |
+| VNHumanBodyPoseObservationJointNameLeftShoulder | const | VNDetectHumanBodyPoseRequest.h:66 | Wrapped by `body_pose::HumanBodyPoseJointName`. |
+| VNHumanBodyPoseObservationJointNameLeftWrist | const | VNDetectHumanBodyPoseRequest.h:73 | Wrapped by `body_pose::HumanBodyPoseJointName`. |
+| VNHumanBodyPoseObservationJointNameNeck | const | VNDetectHumanBodyPoseRequest.h:68 | Wrapped by `body_pose::HumanBodyPoseJointName`. |
+| VNHumanBodyPoseObservationJointNameNose | const | VNDetectHumanBodyPoseRequest.h:58 | Wrapped by `body_pose::HumanBodyPoseJointName`. |
+| VNHumanBodyPoseObservationJointNameRightAnkle | const | VNDetectHumanBodyPoseRequest.h:84 | Wrapped by `body_pose::HumanBodyPoseJointName`. |
+| VNHumanBodyPoseObservationJointNameRightEar | const | VNDetectHumanBodyPoseRequest.h:64 | Wrapped by `body_pose::HumanBodyPoseJointName`. |
+| VNHumanBodyPoseObservationJointNameRightElbow | const | VNDetectHumanBodyPoseRequest.h:71 | Wrapped by `body_pose::HumanBodyPoseJointName`. |
+| VNHumanBodyPoseObservationJointNameRightEye | const | VNDetectHumanBodyPoseRequest.h:61 | Wrapped by `body_pose::HumanBodyPoseJointName`. |
+| VNHumanBodyPoseObservationJointNameRightHip | const | VNDetectHumanBodyPoseRequest.h:77 | Wrapped by `body_pose::HumanBodyPoseJointName`. |
+| VNHumanBodyPoseObservationJointNameRightKnee | const | VNDetectHumanBodyPoseRequest.h:81 | Wrapped by `body_pose::HumanBodyPoseJointName`. |
+| VNHumanBodyPoseObservationJointNameRightShoulder | const | VNDetectHumanBodyPoseRequest.h:67 | Wrapped by `body_pose::HumanBodyPoseJointName`. |
+| VNHumanBodyPoseObservationJointNameRightWrist | const | VNDetectHumanBodyPoseRequest.h:74 | Wrapped by `body_pose::HumanBodyPoseJointName`. |
+| VNHumanBodyPoseObservationJointNameRoot | const | VNDetectHumanBodyPoseRequest.h:78 | Wrapped by `body_pose::HumanBodyPoseJointName`. |
+| VNHumanBodyPoseObservationJointsGroupNameFace | const | VNDetectHumanBodyPoseRequest.h:91 | Wrapped by `body_pose::HumanBodyPoseJointGroupName`. |
+| VNHumanBodyRecognizedPoint3D | interface | VNHumanBodyRecognizedPoint3D.h:16 | Wrapped by `recognized_points::HumanBodyRecognizedPoint3D` and the `detect_human_body_recognized_points_3d` helper. |
+| VNHumanHandPoseObservationJointNameIndexDIP | const | VNDetectHumanHandPoseRequest.h:68 | Wrapped by `hand_pose::HumanHandPoseJointName`. |
+| VNHumanHandPoseObservationJointNameIndexMCP | const | VNDetectHumanHandPoseRequest.h:66 | Wrapped by `hand_pose::HumanHandPoseJointName`. |
+| VNHumanHandPoseObservationJointNameIndexPIP | const | VNDetectHumanHandPoseRequest.h:67 | Wrapped by `hand_pose::HumanHandPoseJointName`. |
+| VNHumanHandPoseObservationJointNameIndexTip | const | VNDetectHumanHandPoseRequest.h:69 | Wrapped by `hand_pose::HumanHandPoseJointName`. |
+| VNHumanHandPoseObservationJointNameLittleDIP | const | VNDetectHumanHandPoseRequest.h:83 | Wrapped by `hand_pose::HumanHandPoseJointName`. |
+| VNHumanHandPoseObservationJointNameLittleMCP | const | VNDetectHumanHandPoseRequest.h:81 | Wrapped by `hand_pose::HumanHandPoseJointName`. |
+| VNHumanHandPoseObservationJointNameLittlePIP | const | VNDetectHumanHandPoseRequest.h:82 | Wrapped by `hand_pose::HumanHandPoseJointName`. |
+| VNHumanHandPoseObservationJointNameLittleTip | const | VNDetectHumanHandPoseRequest.h:84 | Wrapped by `hand_pose::HumanHandPoseJointName`. |
+| VNHumanHandPoseObservationJointNameMiddleDIP | const | VNDetectHumanHandPoseRequest.h:73 | Wrapped by `hand_pose::HumanHandPoseJointName`. |
+| VNHumanHandPoseObservationJointNameMiddleMCP | const | VNDetectHumanHandPoseRequest.h:71 | Wrapped by `hand_pose::HumanHandPoseJointName`. |
+| VNHumanHandPoseObservationJointNameMiddlePIP | const | VNDetectHumanHandPoseRequest.h:72 | Wrapped by `hand_pose::HumanHandPoseJointName`. |
+| VNHumanHandPoseObservationJointNameMiddleTip | const | VNDetectHumanHandPoseRequest.h:74 | Wrapped by `hand_pose::HumanHandPoseJointName`. |
+| VNHumanHandPoseObservationJointNameRingDIP | const | VNDetectHumanHandPoseRequest.h:78 | Wrapped by `hand_pose::HumanHandPoseJointName`. |
+| VNHumanHandPoseObservationJointNameRingMCP | const | VNDetectHumanHandPoseRequest.h:76 | Wrapped by `hand_pose::HumanHandPoseJointName`. |
+| VNHumanHandPoseObservationJointNameRingPIP | const | VNDetectHumanHandPoseRequest.h:77 | Wrapped by `hand_pose::HumanHandPoseJointName`. |
+| VNHumanHandPoseObservationJointNameRingTip | const | VNDetectHumanHandPoseRequest.h:79 | Wrapped by `hand_pose::HumanHandPoseJointName`. |
+| VNHumanHandPoseObservationJointNameThumbCMC | const | VNDetectHumanHandPoseRequest.h:61 | Wrapped by `hand_pose::HumanHandPoseJointName`. |
+| VNHumanHandPoseObservationJointNameThumbIP | const | VNDetectHumanHandPoseRequest.h:63 | Wrapped by `hand_pose::HumanHandPoseJointName`. |
+| VNHumanHandPoseObservationJointNameThumbMP | const | VNDetectHumanHandPoseRequest.h:62 | Wrapped by `hand_pose::HumanHandPoseJointName`. |
+| VNHumanHandPoseObservationJointNameThumbTip | const | VNDetectHumanHandPoseRequest.h:64 | Wrapped by `hand_pose::HumanHandPoseJointName`. |
+| VNHumanHandPoseObservationJointNameWrist | const | VNDetectHumanHandPoseRequest.h:59 | Wrapped by `hand_pose::HumanHandPoseJointName`. |
+| VNHumanHandPoseObservationJointsGroupNameAll | const | VNDetectHumanHandPoseRequest.h:95 | Wrapped by `hand_pose::HumanHandPoseJointGroupName`. |
+| VNHumanHandPoseObservationJointsGroupNameIndexFinger | const | VNDetectHumanHandPoseRequest.h:91 | Wrapped by `hand_pose::HumanHandPoseJointGroupName`. |
+| VNHumanHandPoseObservationJointsGroupNameLittleFinger | const | VNDetectHumanHandPoseRequest.h:94 | Wrapped by `hand_pose::HumanHandPoseJointGroupName`. |
+| VNHumanHandPoseObservationJointsGroupNameMiddleFinger | const | VNDetectHumanHandPoseRequest.h:92 | Wrapped by `hand_pose::HumanHandPoseJointGroupName`. |
+| VNHumanHandPoseObservationJointsGroupNameRingFinger | const | VNDetectHumanHandPoseRequest.h:93 | Wrapped by `hand_pose::HumanHandPoseJointGroupName`. |
+| VNHumanHandPoseObservationJointsGroupNameThumb | const | VNDetectHumanHandPoseRequest.h:90 | Wrapped by `hand_pose::HumanHandPoseJointGroupName`. |
+| VNImageCropAndScaleOption | enum | VNTypes.h:19 | Wrapped by `sdk::ImageCropAndScaleOption` with conversions to/from `CoreMLImageCropAndScaleOption`. |
+| VNImageOptionCIContext | const | VNRequestHandler.h:57 | Wrapped by `sdk::ImageOption` and surfaced from `ImageRequestHandler::supported_image_options()`. |
+| VNImageOptionCameraIntrinsics | const | VNRequestHandler.h:51 | Wrapped by `sdk::ImageOption` and surfaced from `ImageRequestHandler::supported_image_options()`. |
+| VNImageOptionProperties | const | VNRequestHandler.h:37 | Wrapped by `sdk::ImageOption` and surfaced from `ImageRequestHandler::supported_image_options()`. |
+| VNImagePointForFaceLandmarkPoint | function | VNUtils.h:185 | Exposed through the dedicated geometry helper in src/geometry.rs: `geometry::image_point_for_face_landmark_point()`. |
+| VNImagePointForNormalizedPoint | function | VNUtils.h:47 | Exposed through the dedicated geometry helper in src/geometry.rs: `geometry::image_point_for_normalized_point()`. |
+| VNImagePointForNormalizedPointUsingRegionOfInterest | function | VNUtils.h:63 | Exposed through the dedicated geometry helper in src/geometry.rs: `geometry::image_point_for_normalized_point_using_region_of_interest()`. |
+| VNImageRectForNormalizedRect | function | VNUtils.h:107 | Exposed through the dedicated geometry helper in src/geometry.rs: `geometry::image_rect_for_normalized_rect()`. |
+| VNImageRectForNormalizedRectUsingRegionOfInterest | function | VNUtils.h:123 | Exposed through the dedicated geometry helper in src/geometry.rs: `geometry::image_rect_for_normalized_rect_using_region_of_interest()`. |
+| VNNormalizedFaceBoundingBoxPointForLandmarkPoint | function | VNUtils.h:169 | Exposed through the dedicated geometry helper in src/geometry.rs: `geometry::normalized_face_bounding_box_point_for_landmark_point()`. |
+| VNNormalizedIdentityRect | const | VNUtils.h:23 | Exposed through the dedicated geometry helper in src/geometry.rs: `geometry::normalized_identity_rect()`. |
+| VNNormalizedPointForImagePoint | function | VNUtils.h:77 | Exposed through the dedicated geometry helper in src/geometry.rs: `geometry::normalized_point_for_image_point()`. |
+| VNNormalizedPointForImagePointUsingRegionOfInterest | function | VNUtils.h:93 | Exposed through the dedicated geometry helper in src/geometry.rs: `geometry::normalized_point_for_image_point_using_region_of_interest()`. |
+| VNNormalizedRectForImageRect | function | VNUtils.h:137 | Exposed through the dedicated geometry helper in src/geometry.rs: `geometry::normalized_rect_for_image_rect()`. |
+| VNNormalizedRectForImageRectUsingRegionOfInterest | function | VNUtils.h:153 | Exposed through the dedicated geometry helper in src/geometry.rs: `geometry::normalized_rect_for_image_rect_using_region_of_interest()`. |
+| VNNormalizedRectIsIdentityRect | function | VNUtils.h:33 | Exposed through the dedicated geometry helper in src/geometry.rs: `geometry::normalized_rect_is_identity_rect()`. |
+| VNPoint | interface | VNGeometry.h:27 | Wrapped by `geometry::VisionPoint`. |
+| VNPoint3D | interface | VNGeometry.h:93 | Wrapped by `geometry::VisionPoint3D`. |
+| VNPointsClassification | enum | VNTypes.h:106 | Wrapped by `sdk::PointsClassification`. |
+| VNRecognizedPoint | interface | VNDetectedPoint.h:44 | Wrapped by `recognized_points::VisionRecognizedPoint`. |
+| VNRecognizedPoint3D | interface | VNRecognizedPoint3D.h:21 | Wrapped by `recognized_points::VisionRecognizedPoint3D`. |
+| VNRecognizedPoint3DGroupKeyAll | const | VNObservation.h:830 | Wrapped by `sdk::RecognizedPoint3DGroupKey::All`. |
+| VNRecognizedPointGroupKeyAll | const | VNObservation.h:660 | Wrapped by `sdk::RecognizedPointGroupKey::All`. |
+| VNRecognizedText | interface | VNObservation.h:365 | Wrapped by `recognize_text::RecognizedTextCandidate` and `processing::RecognizedTextObservation::candidate()`. |
+| VNRequestFaceLandmarksConstellation | enum | VNDetectFaceLandmarksRequest.h:19 | Wrapped by `face_landmarks::RequestFaceLandmarksConstellation` and `FaceLandmarksRequest`. |
+| VNRequestProgressProviding | protocol | VNRequest.h:181 | Wrapped by `request_base::RequestProgress` and the `RequestProgressProviding` trait. |
+| VNRequestRevisionProviding | protocol | VNRequestRevisionProviding.h:15 | Wrapped by the `request_base::RequestRevisionProviding` trait across base request wrappers plus explicit request builders. |
+| VNTrackOpticalFlowRequestComputationAccuracy | enum | VNTrackOpticalFlowRequest.h:19 | Wrapped by `tracking::TrackOpticalFlowRequestComputationAccuracy`. |
+| VNVector | interface | VNGeometry.h:109 | Wrapped by `geometry::VisionVector`. |
+| VNVideoProcessorCadence | interface | VNVideoProcessor.h:23 | Wrapped by `processing::VideoProcessorCadence`. |
+| VNVideoProcessorFrameRateCadence | interface | VNVideoProcessor.h:32 | Wrapped by `processing::VideoProcessorFrameRateCadence`. |
+| VNVideoProcessorRequestProcessingOptions | interface | VNVideoProcessor.h:57 | Wrapped by `processing::VideoProcessorRequestProcessingOptions`. |
+| VNVideoProcessorTimeIntervalCadence | interface | VNVideoProcessor.h:44 | Wrapped by `processing::VideoProcessorTimeIntervalCadence`. |
+| VNVisionVersionNumber | const | Vision.h:62 | Wrapped by the public accessor `sdk::vision_version_number()`. |
 
 ## 🔴 GAPS
 | Symbol | Kind | Header | Notes |
 | --- | --- | --- | --- |
-| VNAnimalBodyPoseObservationJointNameLeftEarTop | const | VNTypes.h:133 | No dedicated public Rust wrapper in the crate. |
-| VNAnimalBodyPoseObservationJointsGroupNameHead | const | VNTypes.h:162 | No dedicated public Rust wrapper in the crate. |
-| VNAnimalIdentifierCat | const | VNRecognizeAnimalsRequest.h:18 | No dedicated public Rust wrapper in the crate. |
-| VNAnimalIdentifierDog | const | VNRecognizeAnimalsRequest.h:17 | No dedicated public Rust wrapper in the crate. |
-| VNBarcodeCompositeType | enum | VNTypes.h:115 | No dedicated public Rust wrapper in the crate. |
-| VNBarcodeSymbologyAztec | const | VNTypes.h:52 | Referenced internally in the Swift bridge or Rust internals, but not exposed as a dedicated public Rust wrapper. |
-| VNBarcodeSymbologyCodabar | const | VNTypes.h:70 | No dedicated public Rust wrapper in the crate. |
-| VNBarcodeSymbologyCode128 | const | VNTypes.h:59 | No dedicated public Rust wrapper in the crate. |
-| VNBarcodeSymbologyCode39 | const | VNTypes.h:53 | No dedicated public Rust wrapper in the crate. |
-| VNBarcodeSymbologyCode39Checksum | const | VNTypes.h:54 | No dedicated public Rust wrapper in the crate. |
-| VNBarcodeSymbologyCode39FullASCII | const | VNTypes.h:55 | No dedicated public Rust wrapper in the crate. |
-| VNBarcodeSymbologyCode39FullASCIIChecksum | const | VNTypes.h:56 | No dedicated public Rust wrapper in the crate. |
-| VNBarcodeSymbologyCode93 | const | VNTypes.h:57 | No dedicated public Rust wrapper in the crate. |
-| VNBarcodeSymbologyCode93i | const | VNTypes.h:58 | No dedicated public Rust wrapper in the crate. |
-| VNBarcodeSymbologyDataMatrix | const | VNTypes.h:60 | No dedicated public Rust wrapper in the crate. |
-| VNBarcodeSymbologyEAN13 | const | VNTypes.h:62 | Referenced internally in the Swift bridge or Rust internals, but not exposed as a dedicated public Rust wrapper. |
-| VNBarcodeSymbologyEAN8 | const | VNTypes.h:61 | No dedicated public Rust wrapper in the crate. |
-| VNBarcodeSymbologyGS1DataBar | const | VNTypes.h:71 | No dedicated public Rust wrapper in the crate. |
-| VNBarcodeSymbologyGS1DataBarExpanded | const | VNTypes.h:72 | No dedicated public Rust wrapper in the crate. |
-| VNBarcodeSymbologyGS1DataBarLimited | const | VNTypes.h:73 | No dedicated public Rust wrapper in the crate. |
-| VNBarcodeSymbologyI2of5 | const | VNTypes.h:63 | No dedicated public Rust wrapper in the crate. |
-| VNBarcodeSymbologyI2of5Checksum | const | VNTypes.h:64 | No dedicated public Rust wrapper in the crate. |
-| VNBarcodeSymbologyITF14 | const | VNTypes.h:65 | No dedicated public Rust wrapper in the crate. |
-| VNBarcodeSymbologyMSIPlessey | const | VNTypes.h:76 | No dedicated public Rust wrapper in the crate. |
-| VNBarcodeSymbologyMicroPDF417 | const | VNTypes.h:74 | No dedicated public Rust wrapper in the crate. |
-| VNBarcodeSymbologyMicroQR | const | VNTypes.h:75 | No dedicated public Rust wrapper in the crate. |
-| VNBarcodeSymbologyPDF417 | const | VNTypes.h:66 | No dedicated public Rust wrapper in the crate. |
-| VNBarcodeSymbologyQR | const | VNTypes.h:67 | Referenced internally in the Swift bridge or Rust internals, but not exposed as a dedicated public Rust wrapper. |
-| VNBarcodeSymbologyUPCE | const | VNTypes.h:68 | No dedicated public Rust wrapper in the crate. |
-| VNCircle | interface | VNGeometry.h:199 | No dedicated public Rust wrapper in the crate. |
-| VNComputeStageMain | const | VNTypes.h:36 | No dedicated public Rust wrapper in the crate. |
-| VNComputeStagePostProcessing | const | VNTypes.h:42 | No dedicated public Rust wrapper in the crate. |
-| VNContour | interface | VNGeometry.h:256 | No dedicated public Rust wrapper in the crate. |
-| VNDetectedPoint | interface | VNDetectedPoint.h:21 | No dedicated public Rust wrapper in the crate. |
-| VNElementType | enum | VNTypes.h:80 | No dedicated public Rust wrapper in the crate. |
-| VNElementTypeSize | function | VNUtils.h:195 | No dedicated public Rust wrapper in the crate. |
-| VNErrorCode | enum | VNError.h:14 | No dedicated public Rust wrapper in the crate. |
-| VNErrorDomain | const | VNError.h:11 | No dedicated public Rust wrapper in the crate. |
-| VNFaceLandmarkRegion | interface | VNFaceLandmarks.h:26 | No dedicated public Rust wrapper in the crate. |
-| VNFaceLandmarkRegion2D | interface | VNFaceLandmarks.h:45 | Referenced internally in the Swift bridge or Rust internals, but not exposed as a dedicated public Rust wrapper. |
-| VNFaceLandmarks | interface | VNFaceLandmarks.h:97 | No dedicated public Rust wrapper in the crate. |
-| VNFaceLandmarks2D | interface | VNFaceLandmarks.h:116 | No dedicated public Rust wrapper in the crate. |
-| VNFaceObservationAccepting | protocol | VNFaceObservationAccepting.h:21 | No dedicated public Rust wrapper in the crate. |
-| VNGeometryUtils | interface | VNGeometryUtils.h:24 | No dedicated public Rust wrapper in the crate. |
-| VNHumanBodyPose3DObservationHeightEstimation | enum | VNObservation.h:881 | No dedicated public Rust wrapper in the crate. |
-| VNHumanBodyPose3DObservationJointNameCenterHead | const | VNTypes.h:183 | No dedicated public Rust wrapper in the crate. |
-| VNHumanBodyPose3DObservationJointNameCenterShoulder | const | VNTypes.h:182 | No dedicated public Rust wrapper in the crate. |
-| VNHumanBodyPose3DObservationJointNameLeftAnkle | const | VNTypes.h:180 | No dedicated public Rust wrapper in the crate. |
-| VNHumanBodyPose3DObservationJointNameLeftElbow | const | VNTypes.h:186 | No dedicated public Rust wrapper in the crate. |
-| VNHumanBodyPose3DObservationJointNameLeftHip | const | VNTypes.h:178 | No dedicated public Rust wrapper in the crate. |
-| VNHumanBodyPose3DObservationJointNameLeftKnee | const | VNTypes.h:179 | No dedicated public Rust wrapper in the crate. |
-| VNHumanBodyPose3DObservationJointNameLeftShoulder | const | VNTypes.h:185 | No dedicated public Rust wrapper in the crate. |
-| VNHumanBodyPose3DObservationJointNameLeftWrist | const | VNTypes.h:187 | No dedicated public Rust wrapper in the crate. |
-| VNHumanBodyPose3DObservationJointNameRightAnkle | const | VNTypes.h:177 | No dedicated public Rust wrapper in the crate. |
-| VNHumanBodyPose3DObservationJointNameRightElbow | const | VNTypes.h:189 | No dedicated public Rust wrapper in the crate. |
-| VNHumanBodyPose3DObservationJointNameRightHip | const | VNTypes.h:175 | No dedicated public Rust wrapper in the crate. |
-| VNHumanBodyPose3DObservationJointNameRightKnee | const | VNTypes.h:176 | No dedicated public Rust wrapper in the crate. |
-| VNHumanBodyPose3DObservationJointNameRightShoulder | const | VNTypes.h:188 | No dedicated public Rust wrapper in the crate. |
-| VNHumanBodyPose3DObservationJointNameRightWrist | const | VNTypes.h:190 | No dedicated public Rust wrapper in the crate. |
-| VNHumanBodyPose3DObservationJointNameRoot | const | VNTypes.h:174 | No dedicated public Rust wrapper in the crate. |
-| VNHumanBodyPose3DObservationJointNameSpine | const | VNTypes.h:181 | No dedicated public Rust wrapper in the crate. |
-| VNHumanBodyPose3DObservationJointNameTopHead | const | VNTypes.h:184 | No dedicated public Rust wrapper in the crate. |
-| VNHumanBodyPose3DObservationJointsGroupNameHead | const | VNTypes.h:193 | No dedicated public Rust wrapper in the crate. |
-| VNHumanBodyPoseObservationJointNameLeftAnkle | const | VNDetectHumanBodyPoseRequest.h:83 | No dedicated public Rust wrapper in the crate. |
-| VNHumanBodyPoseObservationJointNameLeftEar | const | VNDetectHumanBodyPoseRequest.h:63 | No dedicated public Rust wrapper in the crate. |
-| VNHumanBodyPoseObservationJointNameLeftElbow | const | VNDetectHumanBodyPoseRequest.h:70 | No dedicated public Rust wrapper in the crate. |
-| VNHumanBodyPoseObservationJointNameLeftEye | const | VNDetectHumanBodyPoseRequest.h:60 | No dedicated public Rust wrapper in the crate. |
-| VNHumanBodyPoseObservationJointNameLeftHip | const | VNDetectHumanBodyPoseRequest.h:76 | No dedicated public Rust wrapper in the crate. |
-| VNHumanBodyPoseObservationJointNameLeftKnee | const | VNDetectHumanBodyPoseRequest.h:80 | No dedicated public Rust wrapper in the crate. |
-| VNHumanBodyPoseObservationJointNameLeftShoulder | const | VNDetectHumanBodyPoseRequest.h:66 | No dedicated public Rust wrapper in the crate. |
-| VNHumanBodyPoseObservationJointNameLeftWrist | const | VNDetectHumanBodyPoseRequest.h:73 | No dedicated public Rust wrapper in the crate. |
-| VNHumanBodyPoseObservationJointNameNeck | const | VNDetectHumanBodyPoseRequest.h:68 | No dedicated public Rust wrapper in the crate. |
-| VNHumanBodyPoseObservationJointNameNose | const | VNDetectHumanBodyPoseRequest.h:58 | No dedicated public Rust wrapper in the crate. |
-| VNHumanBodyPoseObservationJointNameRightAnkle | const | VNDetectHumanBodyPoseRequest.h:84 | No dedicated public Rust wrapper in the crate. |
-| VNHumanBodyPoseObservationJointNameRightEar | const | VNDetectHumanBodyPoseRequest.h:64 | No dedicated public Rust wrapper in the crate. |
-| VNHumanBodyPoseObservationJointNameRightElbow | const | VNDetectHumanBodyPoseRequest.h:71 | No dedicated public Rust wrapper in the crate. |
-| VNHumanBodyPoseObservationJointNameRightEye | const | VNDetectHumanBodyPoseRequest.h:61 | No dedicated public Rust wrapper in the crate. |
-| VNHumanBodyPoseObservationJointNameRightHip | const | VNDetectHumanBodyPoseRequest.h:77 | No dedicated public Rust wrapper in the crate. |
-| VNHumanBodyPoseObservationJointNameRightKnee | const | VNDetectHumanBodyPoseRequest.h:81 | No dedicated public Rust wrapper in the crate. |
-| VNHumanBodyPoseObservationJointNameRightShoulder | const | VNDetectHumanBodyPoseRequest.h:67 | No dedicated public Rust wrapper in the crate. |
-| VNHumanBodyPoseObservationJointNameRightWrist | const | VNDetectHumanBodyPoseRequest.h:74 | No dedicated public Rust wrapper in the crate. |
-| VNHumanBodyPoseObservationJointNameRoot | const | VNDetectHumanBodyPoseRequest.h:78 | No dedicated public Rust wrapper in the crate. |
-| VNHumanBodyPoseObservationJointsGroupNameFace | const | VNDetectHumanBodyPoseRequest.h:91 | No dedicated public Rust wrapper in the crate. |
-| VNHumanBodyRecognizedPoint3D | interface | VNHumanBodyRecognizedPoint3D.h:16 | No dedicated public Rust wrapper in the crate. |
-| VNHumanHandPoseObservationJointNameIndexDIP | const | VNDetectHumanHandPoseRequest.h:68 | No dedicated public Rust wrapper in the crate. |
-| VNHumanHandPoseObservationJointNameIndexMCP | const | VNDetectHumanHandPoseRequest.h:66 | No dedicated public Rust wrapper in the crate. |
-| VNHumanHandPoseObservationJointNameIndexPIP | const | VNDetectHumanHandPoseRequest.h:67 | No dedicated public Rust wrapper in the crate. |
-| VNHumanHandPoseObservationJointNameIndexTip | const | VNDetectHumanHandPoseRequest.h:69 | No dedicated public Rust wrapper in the crate. |
-| VNHumanHandPoseObservationJointNameLittleDIP | const | VNDetectHumanHandPoseRequest.h:83 | No dedicated public Rust wrapper in the crate. |
-| VNHumanHandPoseObservationJointNameLittleMCP | const | VNDetectHumanHandPoseRequest.h:81 | No dedicated public Rust wrapper in the crate. |
-| VNHumanHandPoseObservationJointNameLittlePIP | const | VNDetectHumanHandPoseRequest.h:82 | No dedicated public Rust wrapper in the crate. |
-| VNHumanHandPoseObservationJointNameLittleTip | const | VNDetectHumanHandPoseRequest.h:84 | No dedicated public Rust wrapper in the crate. |
-| VNHumanHandPoseObservationJointNameMiddleDIP | const | VNDetectHumanHandPoseRequest.h:73 | No dedicated public Rust wrapper in the crate. |
-| VNHumanHandPoseObservationJointNameMiddleMCP | const | VNDetectHumanHandPoseRequest.h:71 | No dedicated public Rust wrapper in the crate. |
-| VNHumanHandPoseObservationJointNameMiddlePIP | const | VNDetectHumanHandPoseRequest.h:72 | No dedicated public Rust wrapper in the crate. |
-| VNHumanHandPoseObservationJointNameMiddleTip | const | VNDetectHumanHandPoseRequest.h:74 | No dedicated public Rust wrapper in the crate. |
-| VNHumanHandPoseObservationJointNameRingDIP | const | VNDetectHumanHandPoseRequest.h:78 | No dedicated public Rust wrapper in the crate. |
-| VNHumanHandPoseObservationJointNameRingMCP | const | VNDetectHumanHandPoseRequest.h:76 | No dedicated public Rust wrapper in the crate. |
-| VNHumanHandPoseObservationJointNameRingPIP | const | VNDetectHumanHandPoseRequest.h:77 | No dedicated public Rust wrapper in the crate. |
-| VNHumanHandPoseObservationJointNameRingTip | const | VNDetectHumanHandPoseRequest.h:79 | No dedicated public Rust wrapper in the crate. |
-| VNHumanHandPoseObservationJointNameThumbCMC | const | VNDetectHumanHandPoseRequest.h:61 | No dedicated public Rust wrapper in the crate. |
-| VNHumanHandPoseObservationJointNameThumbIP | const | VNDetectHumanHandPoseRequest.h:63 | No dedicated public Rust wrapper in the crate. |
-| VNHumanHandPoseObservationJointNameThumbMP | const | VNDetectHumanHandPoseRequest.h:62 | No dedicated public Rust wrapper in the crate. |
-| VNHumanHandPoseObservationJointNameThumbTip | const | VNDetectHumanHandPoseRequest.h:64 | No dedicated public Rust wrapper in the crate. |
-| VNHumanHandPoseObservationJointNameWrist | const | VNDetectHumanHandPoseRequest.h:59 | No dedicated public Rust wrapper in the crate. |
-| VNHumanHandPoseObservationJointsGroupNameAll | const | VNDetectHumanHandPoseRequest.h:95 | No dedicated public Rust wrapper in the crate. |
-| VNHumanHandPoseObservationJointsGroupNameIndexFinger | const | VNDetectHumanHandPoseRequest.h:91 | No dedicated public Rust wrapper in the crate. |
-| VNHumanHandPoseObservationJointsGroupNameLittleFinger | const | VNDetectHumanHandPoseRequest.h:94 | No dedicated public Rust wrapper in the crate. |
-| VNHumanHandPoseObservationJointsGroupNameMiddleFinger | const | VNDetectHumanHandPoseRequest.h:92 | No dedicated public Rust wrapper in the crate. |
-| VNHumanHandPoseObservationJointsGroupNameRingFinger | const | VNDetectHumanHandPoseRequest.h:93 | No dedicated public Rust wrapper in the crate. |
-| VNHumanHandPoseObservationJointsGroupNameThumb | const | VNDetectHumanHandPoseRequest.h:90 | No dedicated public Rust wrapper in the crate. |
-| VNImageCropAndScaleOption | enum | VNTypes.h:19 | No dedicated public Rust wrapper in the crate. |
-| VNImageOptionCIContext | const | VNRequestHandler.h:57 | No dedicated public Rust wrapper in the crate. |
-| VNImageOptionCameraIntrinsics | const | VNRequestHandler.h:51 | No dedicated public Rust wrapper in the crate. |
-| VNImageOptionProperties | const | VNRequestHandler.h:37 | No dedicated public Rust wrapper in the crate. |
-| VNImagePointForFaceLandmarkPoint | function | VNUtils.h:185 | No dedicated public Rust wrapper in the crate. |
-| VNImagePointForNormalizedPoint | function | VNUtils.h:47 | No dedicated public Rust wrapper in the crate. |
-| VNImagePointForNormalizedPointUsingRegionOfInterest | function | VNUtils.h:63 | No dedicated public Rust wrapper in the crate. |
-| VNImageRectForNormalizedRect | function | VNUtils.h:107 | No dedicated public Rust wrapper in the crate. |
-| VNImageRectForNormalizedRectUsingRegionOfInterest | function | VNUtils.h:123 | No dedicated public Rust wrapper in the crate. |
-| VNNormalizedFaceBoundingBoxPointForLandmarkPoint | function | VNUtils.h:169 | No dedicated public Rust wrapper in the crate. |
-| VNNormalizedIdentityRect | const | VNUtils.h:23 | No dedicated public Rust wrapper in the crate. |
-| VNNormalizedPointForImagePoint | function | VNUtils.h:77 | No dedicated public Rust wrapper in the crate. |
-| VNNormalizedPointForImagePointUsingRegionOfInterest | function | VNUtils.h:93 | No dedicated public Rust wrapper in the crate. |
-| VNNormalizedRectForImageRect | function | VNUtils.h:137 | No dedicated public Rust wrapper in the crate. |
-| VNNormalizedRectForImageRectUsingRegionOfInterest | function | VNUtils.h:153 | No dedicated public Rust wrapper in the crate. |
-| VNNormalizedRectIsIdentityRect | function | VNUtils.h:33 | No dedicated public Rust wrapper in the crate. |
-| VNPoint | interface | VNGeometry.h:27 | No dedicated public Rust wrapper in the crate. |
-| VNPoint3D | interface | VNGeometry.h:93 | No dedicated public Rust wrapper in the crate. |
-| VNPointsClassification | enum | VNTypes.h:106 | No dedicated public Rust wrapper in the crate. |
-| VNRecognizedPoint | interface | VNDetectedPoint.h:44 | No dedicated public Rust wrapper in the crate. |
-| VNRecognizedPoint3D | interface | VNRecognizedPoint3D.h:21 | No dedicated public Rust wrapper in the crate. |
-| VNRecognizedPoint3DGroupKeyAll | const | VNObservation.h:830 | No dedicated public Rust wrapper in the crate. |
-| VNRecognizedPointGroupKeyAll | const | VNObservation.h:660 | No dedicated public Rust wrapper in the crate. |
-| VNRecognizedText | interface | VNObservation.h:365 | No dedicated public Rust wrapper in the crate. |
-| VNRequestFaceLandmarksConstellation | enum | VNDetectFaceLandmarksRequest.h:19 | No dedicated public Rust wrapper in the crate. |
-| VNRequestProgressProviding | protocol | VNRequest.h:181 | No dedicated public Rust wrapper in the crate. |
-| VNRequestRevisionProviding | protocol | VNRequestRevisionProviding.h:15 | No dedicated public Rust wrapper in the crate. |
-| VNTrackOpticalFlowRequestComputationAccuracy | enum | VNTrackOpticalFlowRequest.h:19 | No dedicated public Rust wrapper in the crate. |
-| VNVector | interface | VNGeometry.h:109 | No dedicated public Rust wrapper in the crate. |
-| VNVideoProcessorCadence | interface | VNVideoProcessor.h:23 | No dedicated public Rust wrapper in the crate. |
-| VNVideoProcessorFrameRateCadence | interface | VNVideoProcessor.h:32 | No dedicated public Rust wrapper in the crate. |
-| VNVideoProcessorRequestProcessingOptions | interface | VNVideoProcessor.h:57 | No dedicated public Rust wrapper in the crate. |
-| VNVideoProcessorTimeIntervalCadence | interface | VNVideoProcessor.h:44 | No dedicated public Rust wrapper in the crate. |
-| VNVisionVersionNumber | const | Vision.h:62 | No dedicated public Rust wrapper in the crate. |
 
 ## ⏭️ EXEMPT
 | Symbol | Kind | Header | Reason | SDK attribute |

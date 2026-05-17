@@ -20,7 +20,9 @@ use std::{
 use crate::{
     error::{from_swift, VisionError},
     ffi,
-    recognize_text::{BoundingBox, RecognitionLevel, RecognizedText},
+    recognize_text::{BoundingBox, RecognitionLevel, RecognizedText, RecognizedTextCandidate},
+    request_base::RequestRevisionProviding,
+    sdk::{ComputeStage, ImageOption},
 };
 
 const VIDEO_CADENCE_DEFAULT: i32 = 0;
@@ -49,6 +51,12 @@ pub struct Request {
 impl Default for Request {
     fn default() -> Self {
         Self::recognize_text()
+    }
+}
+
+impl RequestRevisionProviding for Request {
+    fn request_revision(&self) -> Option<usize> {
+        self.revision()
     }
 }
 
@@ -132,6 +140,12 @@ impl Request {
         self.revision
     }
 
+    /// The compute-stage keys exposed by the current Vision SDK.
+    #[must_use]
+    pub const fn supported_compute_stages() -> &'static [ComputeStage] {
+        ComputeStage::ALL
+    }
+
     const fn recognition_level_raw(&self) -> i32 {
         match self.recognition_level {
             RecognitionLevel::Fast => 0,
@@ -179,6 +193,12 @@ impl RecognizedTextObservation {
     pub fn as_recognized_text(&self) -> RecognizedText {
         self.clone().into()
     }
+
+    /// Clone into the dedicated `VNRecognizedText` wrapper.
+    #[must_use]
+    pub fn candidate(&self) -> RecognizedTextCandidate {
+        self.as_recognized_text().into()
+    }
 }
 
 impl From<RecognizedTextObservation> for RecognizedText {
@@ -206,13 +226,22 @@ impl ImageRequestHandler {
         }
     }
 
+    /// Image-option keys accepted by `VNImageRequestHandler`.
+    #[must_use]
+    pub const fn supported_image_options() -> &'static [ImageOption] {
+        ImageOption::ALL
+    }
+
     /// Perform `request` against the bound image.
     ///
     /// # Errors
     ///
     /// Returns [`VisionError`] if the path is invalid, the image cannot be
     /// loaded, or Vision rejects the request.
-    pub fn perform(&self, request: &Request) -> Result<Vec<RecognizedTextObservation>, VisionError> {
+    pub fn perform(
+        &self,
+        request: &Request,
+    ) -> Result<Vec<RecognizedTextObservation>, VisionError> {
         let image_c = path_to_cstring(&self.image_path, "image path")?;
         let mut out_array: *mut c_void = ptr::null_mut();
         let mut out_count: usize = 0;
@@ -324,10 +353,74 @@ pub enum VideoCadence {
     TimeIntervalSeconds(f64),
 }
 
+/// Base `VNVideoProcessorCadence` wrapper.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct VideoProcessorCadence {
+    pub cadence: VideoCadence,
+}
+
+impl VideoProcessorCadence {
+    #[must_use]
+    pub const fn every_frame() -> Self {
+        Self {
+            cadence: VideoCadence::EveryFrame,
+        }
+    }
+
+    #[must_use]
+    pub const fn frame_rate(frames_per_second: usize) -> Self {
+        Self {
+            cadence: VideoCadence::FrameRate(frames_per_second),
+        }
+    }
+
+    #[must_use]
+    pub const fn time_interval_seconds(seconds: f64) -> Self {
+        Self {
+            cadence: VideoCadence::TimeIntervalSeconds(seconds),
+        }
+    }
+}
+
+/// Dedicated `VNVideoProcessorFrameRateCadence` wrapper.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct VideoProcessorFrameRateCadence {
+    pub frames_per_second: usize,
+}
+
+impl VideoProcessorFrameRateCadence {
+    #[must_use]
+    pub const fn as_video_processor_cadence(self) -> VideoProcessorCadence {
+        VideoProcessorCadence::frame_rate(self.frames_per_second)
+    }
+}
+
+/// Dedicated `VNVideoProcessorTimeIntervalCadence` wrapper.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct VideoProcessorTimeIntervalCadence {
+    pub seconds: f64,
+}
+
+impl VideoProcessorTimeIntervalCadence {
+    #[must_use]
+    pub const fn as_video_processor_cadence(self) -> VideoProcessorCadence {
+        VideoProcessorCadence::time_interval_seconds(self.seconds)
+    }
+}
+
 /// `VNVideoProcessor` request options.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct VideoProcessingOptions {
     pub cadence: Option<VideoCadence>,
+}
+
+/// Dedicated `VNVideoProcessorRequestProcessingOptions` wrapper.
+pub type VideoProcessorRequestProcessingOptions = VideoProcessingOptions;
+
+impl From<VideoProcessorCadence> for VideoCadence {
+    fn from(value: VideoProcessorCadence) -> Self {
+        value.cadence
+    }
 }
 
 impl Default for VideoProcessingOptions {
@@ -345,6 +438,12 @@ impl VideoProcessingOptions {
     #[must_use]
     pub const fn with_cadence(mut self, cadence: VideoCadence) -> Self {
         self.cadence = Some(cadence);
+        self
+    }
+
+    #[must_use]
+    pub const fn with_video_processor_cadence(mut self, cadence: VideoProcessorCadence) -> Self {
+        self.cadence = Some(cadence.cadence);
         self
     }
 }
@@ -472,7 +571,9 @@ fn c_string_or_empty(ptr: *mut c_char) -> String {
     if ptr.is_null() {
         String::new()
     } else {
-        unsafe { CStr::from_ptr(ptr) }.to_string_lossy().into_owned()
+        unsafe { CStr::from_ptr(ptr) }
+            .to_string_lossy()
+            .into_owned()
     }
 }
 

@@ -37,10 +37,18 @@ pub fn register_translational(
     target: impl AsRef<Path>,
     floating: impl AsRef<Path>,
 ) -> Result<TranslationalAlignment, VisionError> {
-    let target_str = target.as_ref().to_str().ok_or_else(|| VisionError::InvalidArgument("non-UTF-8 target path".into()))?;
-    let tp = CString::new(target_str).map_err(|e| VisionError::InvalidArgument(format!("target path NUL byte: {e}")))?;
-    let floating_str = floating.as_ref().to_str().ok_or_else(|| VisionError::InvalidArgument("non-UTF-8 floating path".into()))?;
-    let fp = CString::new(floating_str).map_err(|e| VisionError::InvalidArgument(format!("floating path NUL byte: {e}")))?;
+    let target_str = target
+        .as_ref()
+        .to_str()
+        .ok_or_else(|| VisionError::InvalidArgument("non-UTF-8 target path".into()))?;
+    let tp = CString::new(target_str)
+        .map_err(|e| VisionError::InvalidArgument(format!("target path NUL byte: {e}")))?;
+    let floating_str = floating
+        .as_ref()
+        .to_str()
+        .ok_or_else(|| VisionError::InvalidArgument("non-UTF-8 floating path".into()))?;
+    let fp = CString::new(floating_str)
+        .map_err(|e| VisionError::InvalidArgument(format!("floating path NUL byte: {e}")))?;
     let mut out = ffi::TranslationalAlignmentRaw { tx: 0.0, ty: 0.0 };
     let mut err: *mut std::ffi::c_char = ptr::null_mut();
     let status = unsafe {
@@ -81,10 +89,18 @@ pub fn register_homographic(
     target: impl AsRef<Path>,
     floating: impl AsRef<Path>,
 ) -> Result<HomographicAlignment, VisionError> {
-    let target_str = target.as_ref().to_str().ok_or_else(|| VisionError::InvalidArgument("non-UTF-8 target path".into()))?;
-    let tp = CString::new(target_str).map_err(|e| VisionError::InvalidArgument(format!("target path NUL byte: {e}")))?;
-    let floating_str = floating.as_ref().to_str().ok_or_else(|| VisionError::InvalidArgument("non-UTF-8 floating path".into()))?;
-    let fp = CString::new(floating_str).map_err(|e| VisionError::InvalidArgument(format!("floating path NUL byte: {e}")))?;
+    let target_str = target
+        .as_ref()
+        .to_str()
+        .ok_or_else(|| VisionError::InvalidArgument("non-UTF-8 target path".into()))?;
+    let tp = CString::new(target_str)
+        .map_err(|e| VisionError::InvalidArgument(format!("target path NUL byte: {e}")))?;
+    let floating_str = floating
+        .as_ref()
+        .to_str()
+        .ok_or_else(|| VisionError::InvalidArgument("non-UTF-8 floating path".into()))?;
+    let fp = CString::new(floating_str)
+        .map_err(|e| VisionError::InvalidArgument(format!("floating path NUL byte: {e}")))?;
     let mut out = ffi::HomographicAlignmentRaw {
         m00: 0.0,
         m01: 0.0,

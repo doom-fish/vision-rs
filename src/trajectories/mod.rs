@@ -36,8 +36,12 @@ pub fn detect_trajectories(
     path: impl AsRef<Path>,
     trajectory_length: usize,
 ) -> Result<Vec<Trajectory>, VisionError> {
-    let path_str = path.as_ref().to_str().ok_or_else(|| VisionError::InvalidArgument("non-UTF-8 path".into()))?;
-    let cpath = CString::new(path_str).map_err(|e| VisionError::InvalidArgument(format!("path NUL byte: {e}")))?;
+    let path_str = path
+        .as_ref()
+        .to_str()
+        .ok_or_else(|| VisionError::InvalidArgument("non-UTF-8 path".into()))?;
+    let cpath = CString::new(path_str)
+        .map_err(|e| VisionError::InvalidArgument(format!("path NUL byte: {e}")))?;
     let mut traj_ptr: *mut ffi::TrajectoryRaw = ptr::null_mut();
     let mut count: isize = 0;
     let mut err: *mut std::ffi::c_char = ptr::null_mut();

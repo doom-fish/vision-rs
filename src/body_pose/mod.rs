@@ -8,9 +8,86 @@ use std::path::Path;
 
 use crate::error::{from_swift, VisionError};
 use crate::ffi;
-use crate::recognized_points::{RecognizedPoint, RecognizedPointsObservation};
 use crate::recognize_text::BoundingBox;
+use crate::recognized_points::{
+    RecognizedPoint, RecognizedPointsObservation, VisionRecognizedPoint,
+};
 use crate::request_base::NormalizedRect;
+
+macro_rules! string_enum {
+    (
+        $(#[$meta:meta])*
+        pub enum $name:ident {
+            $( $variant:ident => $value:literal ),+ $(,)?
+        }
+    ) => {
+        $(#[$meta])*
+        #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+        pub enum $name {
+            $( $variant ),+
+        }
+
+        impl $name {
+            pub const ALL: &'static [Self] = &[
+                $( Self::$variant ),+
+            ];
+
+            #[must_use]
+            pub const fn as_str(self) -> &'static str {
+                match self {
+                    $( Self::$variant => $value ),+
+                }
+            }
+
+            #[allow(clippy::should_implement_trait)]
+            #[must_use]
+            pub fn from_str(value: &str) -> Option<Self> {
+                match value {
+                    $( $value => Some(Self::$variant), )+
+                    _ => None,
+                }
+            }
+        }
+    };
+}
+
+string_enum! {
+    /// Mirrors `VNHumanBodyPoseObservationJointName`.
+    pub enum HumanBodyPoseJointName {
+        Nose => "head_joint",
+        LeftEye => "left_eye_joint",
+        RightEye => "right_eye_joint",
+        LeftEar => "left_ear_joint",
+        RightEar => "right_ear_joint",
+        LeftShoulder => "left_shoulder_1_joint",
+        RightShoulder => "right_shoulder_1_joint",
+        Neck => "neck_1_joint",
+        LeftElbow => "left_forearm_joint",
+        RightElbow => "right_forearm_joint",
+        LeftWrist => "left_hand_joint",
+        RightWrist => "right_hand_joint",
+        LeftHip => "left_upLeg_joint",
+        RightHip => "right_upLeg_joint",
+        Root => "root",
+        LeftKnee => "left_leg_joint",
+        RightKnee => "right_leg_joint",
+        LeftAnkle => "left_foot_joint",
+        RightAnkle => "right_foot_joint",
+    }
+}
+
+string_enum! {
+    /// Mirrors `VNHumanBodyPoseObservationJointsGroupName`.
+    pub enum HumanBodyPoseJointGroupName {
+        Face => "VNBLKFACE",
+        Torso => "VNBLKTORSO",
+        LeftArm => "VNBLKLARM",
+        RightArm => "VNBLKRARM",
+        LeftLeg => "VNBLKLLEG",
+        RightLeg => "VNBLKRLEG",
+        All => "VNIPOAll",
+    }
+}
 
 /// A single detected joint in normalised image coordinates
 /// (`0.0..=1.0`, bottom-left origin).
@@ -23,9 +100,7 @@ pub struct JointPoint {
 
 /// One detected human body with its recognised joints.
 ///
-/// `joints` keys use Apple's `VNHumanBodyPoseObservationJointName`
-/// values: `"head_joint"`, `"left_shoulder_joint"`, `"right_wrist_joint"`,
-/// `"left_hip_joint"`, `"root"`, etc.
+/// `joints` keys use Apple's `VNHumanBodyPoseObservationJointName` raw values.
 #[derive(Debug, Clone, PartialEq)]
 pub struct DetectedBodyPose {
     pub bounding_box: BoundingBox,
@@ -42,21 +117,65 @@ pub struct HumanBodyPoseObservation {
     pub available_joint_group_names: Vec<String>,
 }
 
+const SUPPORTED_JOINT_NAMES: &[&str] = &[
+    HumanBodyPoseJointName::Nose.as_str(),
+    HumanBodyPoseJointName::LeftEye.as_str(),
+    HumanBodyPoseJointName::RightEye.as_str(),
+    HumanBodyPoseJointName::LeftEar.as_str(),
+    HumanBodyPoseJointName::RightEar.as_str(),
+    HumanBodyPoseJointName::LeftShoulder.as_str(),
+    HumanBodyPoseJointName::RightShoulder.as_str(),
+    HumanBodyPoseJointName::Neck.as_str(),
+    HumanBodyPoseJointName::LeftElbow.as_str(),
+    HumanBodyPoseJointName::RightElbow.as_str(),
+    HumanBodyPoseJointName::LeftWrist.as_str(),
+    HumanBodyPoseJointName::RightWrist.as_str(),
+    HumanBodyPoseJointName::LeftHip.as_str(),
+    HumanBodyPoseJointName::RightHip.as_str(),
+    HumanBodyPoseJointName::Root.as_str(),
+    HumanBodyPoseJointName::LeftKnee.as_str(),
+    HumanBodyPoseJointName::RightKnee.as_str(),
+    HumanBodyPoseJointName::LeftAnkle.as_str(),
+    HumanBodyPoseJointName::RightAnkle.as_str(),
+];
+
+const SUPPORTED_JOINT_GROUP_NAMES: &[&str] = &[
+    HumanBodyPoseJointGroupName::Face.as_str(),
+    HumanBodyPoseJointGroupName::Torso.as_str(),
+    HumanBodyPoseJointGroupName::LeftArm.as_str(),
+    HumanBodyPoseJointGroupName::RightArm.as_str(),
+    HumanBodyPoseJointGroupName::LeftLeg.as_str(),
+    HumanBodyPoseJointGroupName::RightLeg.as_str(),
+    HumanBodyPoseJointGroupName::All.as_str(),
+];
+
 impl HumanBodyPoseObservation {
     #[must_use]
+    pub const fn supported_joint_name_keys() -> &'static [HumanBodyPoseJointName] {
+        HumanBodyPoseJointName::ALL
+    }
+
+    #[must_use]
     pub const fn supported_joint_names() -> &'static [&'static str] {
-        &[
-            "nose", "leftEye", "rightEye", "leftEar", "rightEar",
-            "leftShoulder", "rightShoulder", "neck", "leftElbow",
-            "rightElbow", "leftWrist", "rightWrist", "leftHip",
-            "rightHip", "root", "leftKnee", "rightKnee", "leftAnkle",
-            "rightAnkle",
-        ]
+        SUPPORTED_JOINT_NAMES
+    }
+
+    #[must_use]
+    pub const fn supported_joint_group_name_keys() -> &'static [HumanBodyPoseJointGroupName] {
+        HumanBodyPoseJointGroupName::ALL
     }
 
     #[must_use]
     pub const fn supported_joint_group_names() -> &'static [&'static str] {
-        &["face", "torso", "leftArm", "rightArm", "leftLeg", "rightLeg", "all"]
+        SUPPORTED_JOINT_GROUP_NAMES
+    }
+
+    #[must_use]
+    pub fn recognized_point(
+        &self,
+        joint_name: HumanBodyPoseJointName,
+    ) -> Option<VisionRecognizedPoint> {
+        self.recognized_points.recognized_point(joint_name.as_str())
     }
 
     #[must_use]
@@ -177,7 +296,12 @@ pub(crate) unsafe fn run(
     let mut out_array: *mut core::ffi::c_void = ptr::null_mut();
     let mut out_count: usize = 0;
     let mut err_msg: *mut c_char = ptr::null_mut();
-    let status = f(path_c.as_ptr(), &mut out_array, &mut out_count, &mut err_msg);
+    let status = f(
+        path_c.as_ptr(),
+        &mut out_array,
+        &mut out_count,
+        &mut err_msg,
+    );
     if status != ffi::status::OK {
         return Err(from_swift(status, err_msg));
     }

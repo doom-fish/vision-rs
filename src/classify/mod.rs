@@ -22,9 +22,7 @@ pub struct Classification {
 /// # Errors
 ///
 /// Returns [`VisionError::ImageLoadFailed`] / [`VisionError::RequestFailed`].
-pub fn classify_image_in_path(
-    path: impl AsRef<Path>,
-) -> Result<Vec<Classification>, VisionError> {
+pub fn classify_image_in_path(path: impl AsRef<Path>) -> Result<Vec<Classification>, VisionError> {
     let path_str = path
         .as_ref()
         .to_str()

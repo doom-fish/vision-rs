@@ -8,6 +8,13 @@ use std::path::Path;
 use crate::error::{from_swift, VisionError};
 use crate::ffi;
 use crate::recognize_text::BoundingBox;
+use crate::sdk;
+
+/// Public alias for `VNBarcodeSymbology`.
+pub type BarcodeSymbology = sdk::BarcodeSymbology;
+
+/// Public alias for `VNBarcodeCompositeType`.
+pub type BarcodeCompositeType = sdk::BarcodeCompositeType;
 
 /// One detected barcode.
 #[derive(Debug, Clone, PartialEq)]
@@ -24,6 +31,13 @@ pub struct DetectedBarcode {
     pub bounding_box: BoundingBox,
 }
 
+impl DetectedBarcode {
+    #[must_use]
+    pub fn symbology_kind(&self) -> Option<BarcodeSymbology> {
+        BarcodeSymbology::from_str(&self.symbology)
+    }
+}
+
 /// Detect every barcode in the image at `path`.
 ///
 /// Supports QR, EAN-13/8, UPC-A/E, Code 128/39/93, Aztec, PDF417, `DataMatrix`, …
@@ -32,7 +46,9 @@ pub struct DetectedBarcode {
 /// # Errors
 ///
 /// See [`VisionError`].
-pub fn detect_barcodes_in_path(path: impl AsRef<Path>) -> Result<Vec<DetectedBarcode>, VisionError> {
+pub fn detect_barcodes_in_path(
+    path: impl AsRef<Path>,
+) -> Result<Vec<DetectedBarcode>, VisionError> {
     let path_str = path
         .as_ref()
         .to_str()

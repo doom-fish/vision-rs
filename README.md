@@ -2,7 +2,7 @@
 
 Safe Rust bindings for Apple's [Vision](https://developer.apple.com/documentation/vision) framework — on-device OCR, object detection, face landmarks, and other computer vision tasks on macOS.
 
-> **Status:** v0.15.2 keeps the full Vision request surface, adds explicit base-class + observation wrappers for the remaining request/observation gaps, and ships a fully-implemented request/observation coverage matrix (`COVERAGE.md`) plus a gold-standard multi-file Swift bridge.
+> **Status:** v0.15.3 keeps the full Vision request surface, adds explicit SDK constant/protocol/geometry wrappers for the remaining audit gaps, and ships a fully-implemented `COVERAGE.md` + `COVERAGE_AUDIT.md` matrix plus a gold-standard multi-file Swift bridge.
 
 ## Quick start — OCR
 
@@ -34,7 +34,7 @@ screencapturekit-rs / capture ──► IOSurface / PNG ──► vision ──�
 
 ## Feature flags
 
-All request-type modules can be enabled independently, and the default feature set still enables the full Vision surface. v0.15.2 completes the audited `COVERAGE.md` matrix with explicit base request wrappers (`ImageBasedRequest`, `StatefulRequest`, `TrackingRequest`, `CoreMLRequest`, etc.) plus dedicated observation wrappers for the remaining Vision request/observation types in the macOS SDK.
+All request-type modules can be enabled independently, and the default feature set still enables the full Vision surface. v0.15.3 completes the audited `COVERAGE_AUDIT.md` matrix with dedicated Rust wrappers for Vision geometry/types/constants (`VisionPoint`, `VisionCircle`, `VisionGeometryUtils`, `BarcodeSymbology`, `ImageOption`, etc.), request/observation protocols (`RequestProgressProviding`, `RequestRevisionProviding`, `FaceObservationAccepting`), and the remaining landmark / recognized-point families in the current macOS SDK.
 
 ## Roadmap
 

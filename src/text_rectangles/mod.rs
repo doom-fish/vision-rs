@@ -93,10 +93,7 @@ impl TextRectanglesRequest {
     ///
     /// Returns [`VisionError`] if the image cannot be loaded or Vision rejects
     /// the request.
-    pub fn perform(
-        &self,
-        path: impl AsRef<Path>,
-    ) -> Result<Vec<TextObservation>, VisionError> {
+    pub fn perform(&self, path: impl AsRef<Path>) -> Result<Vec<TextObservation>, VisionError> {
         let path_str = path
             .as_ref()
             .to_str()

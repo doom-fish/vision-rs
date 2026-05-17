@@ -6,8 +6,8 @@ use std::ffi::CString;
 use std::path::Path;
 
 use crate::error::{from_swift, VisionError};
-use crate::ffi;
 use crate::face_landmarks::LandmarkPoint;
+use crate::ffi;
 
 /// A single closed contour, represented as an ordered list of points
 /// in normalised image coordinates.
@@ -20,6 +20,9 @@ pub struct Contour {
     /// Bounding-box width / height of this contour.
     pub aspect_ratio: f32,
 }
+
+/// Public alias for the dedicated `VNContour` wrapper.
+pub type VisionContour = Contour;
 
 /// A dedicated `VNContoursObservation` wrapper.
 #[derive(Debug, Clone, PartialEq)]

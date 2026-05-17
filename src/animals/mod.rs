@@ -10,6 +10,10 @@ use std::path::Path;
 use crate::error::{from_swift, VisionError};
 use crate::ffi;
 use crate::recognize_text::BoundingBox;
+use crate::sdk;
+
+/// Public alias for `VNAnimalIdentifier`.
+pub type AnimalIdentifier = sdk::AnimalIdentifier;
 
 /// One detected animal.
 #[derive(Debug, Clone, PartialEq)]
@@ -18,6 +22,13 @@ pub struct RecognizedAnimal {
     pub identifier: String,
     pub confidence: f32,
     pub bounding_box: BoundingBox,
+}
+
+impl RecognizedAnimal {
+    #[must_use]
+    pub fn identifier_kind(&self) -> Option<AnimalIdentifier> {
+        AnimalIdentifier::from_str(&self.identifier)
+    }
 }
 
 /// Recognise animals in the image at `path`.

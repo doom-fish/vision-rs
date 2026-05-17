@@ -93,5 +93,6 @@ pub fn detect_horizon_observation_in_path(
 ///
 /// Returns [`VisionError::ImageLoadFailed`] / [`VisionError::RequestFailed`].
 pub fn detect_horizon_in_path(path: impl AsRef<Path>) -> Result<Option<f64>, VisionError> {
-    detect_horizon_observation_in_path(path).map(|observation| observation.map(|obs| obs.angle_radians))
+    detect_horizon_observation_in_path(path)
+        .map(|observation| observation.map(|obs| obs.angle_radians))
 }
