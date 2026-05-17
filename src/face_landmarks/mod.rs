@@ -13,6 +13,8 @@ use std::path::Path;
 use crate::error::{from_swift, VisionError};
 use crate::ffi;
 use crate::recognize_text::BoundingBox;
+use crate::request_base::{ImageBasedRequest, RequestRevisionProviding};
+use crate::sdk::PointsClassification;
 
 /// A 2-D point in Vision's normalised image space (`0.0..=1.0`,
 /// bottom-left origin).
@@ -20,6 +22,181 @@ use crate::recognize_text::BoundingBox;
 pub struct LandmarkPoint {
     pub x: f64,
     pub y: f64,
+}
+
+/// Mirrors `VNRequestFaceLandmarksConstellation`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[repr(usize)]
+pub enum RequestFaceLandmarksConstellation {
+    NotDefined = 0,
+    Points65 = 1,
+    Points76 = 2,
+}
+
+impl RequestFaceLandmarksConstellation {
+    pub const ALL: &'static [Self] = &[Self::NotDefined, Self::Points65, Self::Points76];
+
+    #[must_use]
+    pub const fn as_raw(self) -> usize {
+        self as usize
+    }
+}
+
+/// Base `VNFaceLandmarkRegion` wrapper.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct FaceLandmarkRegion {
+    pub point_count: usize,
+    pub request_revision: Option<usize>,
+}
+
+impl RequestRevisionProviding for FaceLandmarkRegion {
+    fn request_revision(&self) -> Option<usize> {
+        self.request_revision
+    }
+}
+
+/// Dedicated `VNFaceLandmarkRegion2D` wrapper.
+#[derive(Debug, Clone, PartialEq)]
+pub struct FaceLandmarkRegion2D {
+    pub region: FaceLandmarkRegion,
+    pub normalized_points: Vec<LandmarkPoint>,
+    pub precision_estimates_per_point: Vec<f32>,
+    pub points_classification: Option<PointsClassification>,
+}
+
+impl FaceLandmarkRegion2D {
+    #[must_use]
+    pub fn points_in_image_of_size(&self, image_size: (f64, f64)) -> Vec<LandmarkPoint> {
+        self.normalized_points
+            .iter()
+            .map(|point| LandmarkPoint {
+                x: point.x * image_size.0,
+                y: point.y * image_size.1,
+            })
+            .collect()
+    }
+}
+
+/// Base `VNFaceLandmarks` wrapper.
+#[derive(Debug, Clone, PartialEq)]
+pub struct FaceLandmarks {
+    pub confidence: f32,
+    pub request_revision: Option<usize>,
+}
+
+impl RequestRevisionProviding for FaceLandmarks {
+    fn request_revision(&self) -> Option<usize> {
+        self.request_revision
+    }
+}
+
+/// Dedicated `VNFaceLandmarks2D` wrapper.
+#[derive(Debug, Clone, PartialEq)]
+pub struct FaceLandmarks2D {
+    pub landmarks: FaceLandmarks,
+    pub all_points: Option<FaceLandmarkRegion2D>,
+    pub face_contour: Option<FaceLandmarkRegion2D>,
+    pub left_eye: Option<FaceLandmarkRegion2D>,
+    pub right_eye: Option<FaceLandmarkRegion2D>,
+    pub left_eyebrow: Option<FaceLandmarkRegion2D>,
+    pub right_eyebrow: Option<FaceLandmarkRegion2D>,
+    pub nose: Option<FaceLandmarkRegion2D>,
+    pub nose_crest: Option<FaceLandmarkRegion2D>,
+    pub median_line: Option<FaceLandmarkRegion2D>,
+    pub outer_lips: Option<FaceLandmarkRegion2D>,
+    pub inner_lips: Option<FaceLandmarkRegion2D>,
+    pub left_pupil: Option<FaceLandmarkRegion2D>,
+    pub right_pupil: Option<FaceLandmarkRegion2D>,
+}
+
+/// Rust mirror of `VNFaceObservationAccepting`.
+pub trait FaceObservationAccepting {
+    fn input_face_observations(&self) -> &[BoundingBox];
+}
+
+/// Builder mirroring `VNDetectFaceLandmarksRequest`'s extra public surface.
+#[derive(Debug, Clone, PartialEq, Default)]
+pub struct FaceLandmarksRequest {
+    image_based_request: ImageBasedRequest,
+    constellation: Option<RequestFaceLandmarksConstellation>,
+    input_face_observations: Vec<BoundingBox>,
+}
+
+impl FaceLandmarksRequest {
+    #[must_use]
+    pub const fn new() -> Self {
+        Self {
+            image_based_request: ImageBasedRequest::new(),
+            constellation: None,
+            input_face_observations: Vec::new(),
+        }
+    }
+
+    #[must_use]
+    pub const fn with_image_based_request(
+        mut self,
+        image_based_request: ImageBasedRequest,
+    ) -> Self {
+        self.image_based_request = image_based_request;
+        self
+    }
+
+    #[must_use]
+    pub const fn with_constellation(
+        mut self,
+        constellation: RequestFaceLandmarksConstellation,
+    ) -> Self {
+        self.constellation = Some(constellation);
+        self
+    }
+
+    #[must_use]
+    pub fn with_input_face_observations(
+        mut self,
+        input_face_observations: Vec<BoundingBox>,
+    ) -> Self {
+        self.input_face_observations = input_face_observations;
+        self
+    }
+
+    #[must_use]
+    pub const fn image_based_request(&self) -> &ImageBasedRequest {
+        &self.image_based_request
+    }
+
+    #[must_use]
+    pub const fn constellation(&self) -> Option<RequestFaceLandmarksConstellation> {
+        self.constellation
+    }
+
+    #[must_use]
+    pub const fn supports_constellation(
+        request_revision: usize,
+        constellation: RequestFaceLandmarksConstellation,
+    ) -> bool {
+        matches!(
+            (request_revision, constellation),
+            (_, RequestFaceLandmarksConstellation::NotDefined)
+                | (1 | 2, RequestFaceLandmarksConstellation::Points65)
+                | (
+                    3,
+                    RequestFaceLandmarksConstellation::Points65
+                        | RequestFaceLandmarksConstellation::Points76,
+                )
+        )
+    }
+}
+
+impl FaceObservationAccepting for FaceLandmarksRequest {
+    fn input_face_observations(&self) -> &[BoundingBox] {
+        &self.input_face_observations
+    }
+}
+
+impl RequestRevisionProviding for FaceLandmarksRequest {
+    fn request_revision(&self) -> Option<usize> {
+        self.image_based_request.revision()
+    }
 }
 
 /// One face plus its detected landmarks. Any region with no points
@@ -45,6 +222,49 @@ pub struct FaceWithLandmarks {
     pub right_pupil: Vec<LandmarkPoint>,
 }
 
+impl FaceWithLandmarks {
+    #[must_use]
+    pub fn landmarks_2d(&self) -> FaceLandmarks2D {
+        let all_points = [
+            &self.face_contour,
+            &self.left_eye,
+            &self.right_eye,
+            &self.left_eyebrow,
+            &self.right_eyebrow,
+            &self.nose,
+            &self.nose_crest,
+            &self.median_line,
+            &self.outer_lips,
+            &self.inner_lips,
+            &self.left_pupil,
+            &self.right_pupil,
+        ]
+        .into_iter()
+        .flat_map(|region| region.iter().copied())
+        .collect::<Vec<_>>();
+
+        FaceLandmarks2D {
+            landmarks: FaceLandmarks {
+                confidence: self.confidence,
+                request_revision: None,
+            },
+            all_points: region_from_points(&all_points),
+            face_contour: region_from_points(&self.face_contour),
+            left_eye: region_from_points(&self.left_eye),
+            right_eye: region_from_points(&self.right_eye),
+            left_eyebrow: region_from_points(&self.left_eyebrow),
+            right_eyebrow: region_from_points(&self.right_eyebrow),
+            nose: region_from_points(&self.nose),
+            nose_crest: region_from_points(&self.nose_crest),
+            median_line: region_from_points(&self.median_line),
+            outer_lips: region_from_points(&self.outer_lips),
+            inner_lips: region_from_points(&self.inner_lips),
+            left_pupil: region_from_points(&self.left_pupil),
+            right_pupil: region_from_points(&self.right_pupil),
+        }
+    }
+}
+
 unsafe fn copy_region(ptr: *mut f64, n: usize) -> Vec<LandmarkPoint> {
     if ptr.is_null() || n == 0 {
         return Vec::new();
@@ -56,6 +276,22 @@ unsafe fn copy_region(ptr: *mut f64, n: usize) -> Vec<LandmarkPoint> {
         v.push(LandmarkPoint { x, y });
     }
     v
+}
+
+fn region_from_points(points: &[LandmarkPoint]) -> Option<FaceLandmarkRegion2D> {
+    if points.is_empty() {
+        None
+    } else {
+        Some(FaceLandmarkRegion2D {
+            region: FaceLandmarkRegion {
+                point_count: points.len(),
+                request_revision: None,
+            },
+            normalized_points: points.to_vec(),
+            precision_estimates_per_point: Vec::new(),
+            points_classification: None,
+        })
+    }
 }
 
 /// Detect faces and their landmark regions in the image at `path`.
@@ -104,8 +340,16 @@ pub fn detect_face_landmarks_in_path(
                 height: raw.bbox_h,
             },
             confidence: raw.confidence,
-            roll: if raw.roll.is_nan() { None } else { Some(raw.roll) },
-            yaw: if raw.yaw.is_nan() { None } else { Some(raw.yaw) },
+            roll: if raw.roll.is_nan() {
+                None
+            } else {
+                Some(raw.roll)
+            },
+            yaw: if raw.yaw.is_nan() {
+                None
+            } else {
+                Some(raw.yaw)
+            },
             pitch: if raw.pitch.is_nan() {
                 None
             } else {

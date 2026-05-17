@@ -10,6 +10,86 @@ use std::ptr;
 use crate::error::VisionError;
 use crate::ffi;
 
+macro_rules! string_enum {
+    (
+        $(#[$meta:meta])*
+        pub enum $name:ident {
+            $( $variant:ident => $value:literal ),+ $(,)?
+        }
+    ) => {
+        $(#[$meta])*
+        #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+        pub enum $name {
+            $( $variant ),+
+        }
+
+        impl $name {
+            pub const ALL: &'static [Self] = &[
+                $( Self::$variant ),+
+            ];
+
+            #[must_use]
+            pub const fn as_str(self) -> &'static str {
+                match self {
+                    $( Self::$variant => $value ),+
+                }
+            }
+
+            #[allow(clippy::should_implement_trait)]
+            #[must_use]
+            pub fn from_str(value: &str) -> Option<Self> {
+                match value {
+                    $( $value => Some(Self::$variant), )+
+                    _ => None,
+                }
+            }
+        }
+    };
+}
+
+string_enum! {
+    /// Mirrors `VNAnimalBodyPoseObservationJointName`.
+    pub enum AnimalBodyPoseJointName {
+        LeftEarTop => "animal_joint_left_ear_top",
+        RightEarTop => "animal_joint_right_ear_top",
+        LeftEarMiddle => "animal_joint_left_ear_middle",
+        RightEarMiddle => "animal_joint_right_ear_middle",
+        LeftEarBottom => "animal_joint_left_ear_bottom",
+        RightEarBottom => "animal_joint_right_ear_bottom",
+        LeftEye => "animal_joint_left_eye",
+        RightEye => "animal_joint_right_eye",
+        Nose => "animal_joint_nose",
+        Neck => "animal_joint_heck",
+        LeftFrontElbow => "animal_joint_left_front_elbow",
+        RightFrontElbow => "animal_joint_right_front_elbow",
+        LeftFrontKnee => "animal_joint_left_front_knee",
+        RightFrontKnee => "animal_joint_right_front_knee",
+        LeftFrontPaw => "animal_joint_left_front_paw",
+        RightFrontPaw => "animal_joint_right_front_paw",
+        LeftBackElbow => "animal_joint_left_back_elbow",
+        RightBackElbow => "animal_joint_right_back_elbow",
+        LeftBackKnee => "animal_joint_left_back_knee",
+        RightBackKnee => "animal_joint_right_back_knee",
+        LeftBackPaw => "animal_joint_left_back_paw",
+        RightBackPaw => "animal_joint_right_back_paw",
+        TailTop => "animal_joint_tail_top",
+        TailMiddle => "animal_joint_tail_middle",
+        TailBottom => "animal_joint_tail_bottom",
+    }
+}
+
+string_enum! {
+    /// Mirrors `VNAnimalBodyPoseObservationJointsGroupName`.
+    pub enum AnimalBodyPoseJointGroupName {
+        Head => "animal_joint_group_head",
+        Trunk => "animal_joint_group_trunk",
+        Forelegs => "animal_joint_group_gorelegs",
+        Hindlegs => "animal_joint_group_hindlegs",
+        Tail => "animal_joint_group_tail",
+        All => "VNIPOAll",
+    }
+}
+
 /// One labelled keypoint on a detected animal body.
 #[derive(Debug, Clone, PartialEq)]
 pub struct AnimalJoint {
@@ -19,6 +99,13 @@ pub struct AnimalJoint {
     pub confidence: f32,
 }
 
+impl AnimalJoint {
+    #[must_use]
+    pub fn joint_name(&self) -> Option<AnimalBodyPoseJointName> {
+        AnimalBodyPoseJointName::from_str(&self.name)
+    }
+}
+
 /// Detect quadruped body-pose keypoints in the image at `path`.
 ///
 /// # Errors
@@ -26,8 +113,12 @@ pub struct AnimalJoint {
 /// Returns [`VisionError`] when the image fails to load or the
 /// Vision request errors.
 pub fn detect_animal_body_pose(path: impl AsRef<Path>) -> Result<Vec<AnimalJoint>, VisionError> {
-    let path_str = path.as_ref().to_str().ok_or_else(|| VisionError::InvalidArgument("non-UTF-8 path".into()))?;
-    let cpath = CString::new(path_str).map_err(|e| VisionError::InvalidArgument(format!("path NUL byte: {e}")))?;
+    let path_str = path
+        .as_ref()
+        .to_str()
+        .ok_or_else(|| VisionError::InvalidArgument("non-UTF-8 path".into()))?;
+    let cpath = CString::new(path_str)
+        .map_err(|e| VisionError::InvalidArgument(format!("path NUL byte: {e}")))?;
     let mut joints_ptr: *mut ffi::AnimalJointRaw = ptr::null_mut();
     let mut count: isize = 0;
     let mut err: *mut std::ffi::c_char = ptr::null_mut();
@@ -49,7 +140,9 @@ pub fn detect_animal_body_pose(path: impl AsRef<Path>) -> Result<Vec<AnimalJoint
         let name = if j.name.is_null() {
             String::new()
         } else {
-            unsafe { CStr::from_ptr(j.name) }.to_string_lossy().into_owned()
+            unsafe { CStr::from_ptr(j.name) }
+                .to_string_lossy()
+                .into_owned()
         };
         out.push(AnimalJoint {
             name,

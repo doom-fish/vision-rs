@@ -569,6 +569,10 @@ pub struct HumanJoint3DRaw {
     pub y: f32,
     pub z: f32,
     pub confidence: f32,
+    pub local_x: f32,
+    pub local_y: f32,
+    pub local_z: f32,
+    pub parent_joint: *mut c_char,
 }
 
 /// Mirrors `VNSimpleRectRaw`.

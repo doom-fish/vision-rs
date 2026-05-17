@@ -47,6 +47,42 @@ pub struct RecognizedText {
     pub bounding_box: BoundingBox,
 }
 
+impl RecognizedText {
+    /// Clone this value into the dedicated `VNRecognizedText` wrapper.
+    #[must_use]
+    pub fn candidate(&self) -> RecognizedTextCandidate {
+        self.clone().into()
+    }
+}
+
+/// Dedicated `VNRecognizedText` wrapper.
+#[derive(Debug, Clone, PartialEq)]
+pub struct RecognizedTextCandidate {
+    pub text: String,
+    pub confidence: f32,
+    pub bounding_box: BoundingBox,
+}
+
+impl From<RecognizedText> for RecognizedTextCandidate {
+    fn from(value: RecognizedText) -> Self {
+        Self {
+            text: value.text,
+            confidence: value.confidence,
+            bounding_box: value.bounding_box,
+        }
+    }
+}
+
+impl From<RecognizedTextCandidate> for RecognizedText {
+    fn from(value: RecognizedTextCandidate) -> Self {
+        Self {
+            text: value.text,
+            confidence: value.confidence,
+            bounding_box: value.bounding_box,
+        }
+    }
+}
+
 /// OCR engine.
 ///
 /// # Examples

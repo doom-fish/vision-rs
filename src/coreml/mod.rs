@@ -39,7 +39,10 @@ impl CoreMLModel {
     }
 
     #[must_use]
-    pub fn with_input_image_feature_name(mut self, input_image_feature_name: impl Into<String>) -> Self {
+    pub fn with_input_image_feature_name(
+        mut self,
+        input_image_feature_name: impl Into<String>,
+    ) -> Self {
         self.input_image_feature_name = Some(input_image_feature_name.into());
         self
     }
@@ -133,13 +136,22 @@ impl CoreMLRequest {
     ///
     /// Returns [`VisionError`] if the image/model cannot be loaded or Vision
     /// rejects the request.
-    pub fn classify(&self, image_path: impl AsRef<Path>) -> Result<Vec<Classification>, VisionError> {
+    pub fn classify(
+        &self,
+        image_path: impl AsRef<Path>,
+    ) -> Result<Vec<Classification>, VisionError> {
         let image_c = path_to_cstring(image_path.as_ref(), "image path")?;
         let model_c = path_to_cstring(self.model.model_path(), "model path")?;
         let input_feature_c = self
             .model
             .input_image_feature_name()
-            .map(|name| CString::new(name).map_err(|err| VisionError::InvalidArgument(format!("input image feature name NUL byte: {err}"))))
+            .map(|name| {
+                CString::new(name).map_err(|err| {
+                    VisionError::InvalidArgument(format!(
+                        "input image feature name NUL byte: {err}"
+                    ))
+                })
+            })
             .transpose()?;
         let roi = self.image_based.region_of_interest();
         let mut out_array = ptr::null_mut();
@@ -149,7 +161,9 @@ impl CoreMLRequest {
             ffi::vn_coreml_request_classify_in_path(
                 image_c.as_ptr(),
                 model_c.as_ptr(),
-                input_feature_c.as_ref().map_or(ptr::null(), |name| name.as_ptr()),
+                input_feature_c
+                    .as_ref()
+                    .map_or(ptr::null(), |name| name.as_ptr()),
                 input_feature_c.is_some(),
                 self.image_crop_and_scale_option as i32,
                 roi.map_or(0.0, |rect| rect.x),
@@ -188,7 +202,13 @@ impl CoreMLRequest {
         let input_feature_c = self
             .model
             .input_image_feature_name()
-            .map(|name| CString::new(name).map_err(|err| VisionError::InvalidArgument(format!("input image feature name NUL byte: {err}"))))
+            .map(|name| {
+                CString::new(name).map_err(|err| {
+                    VisionError::InvalidArgument(format!(
+                        "input image feature name NUL byte: {err}"
+                    ))
+                })
+            })
             .transpose()?;
         let roi = self.image_based.region_of_interest();
         let mut raw = ffi::CoreMLFeatureValueRaw {
@@ -209,7 +229,9 @@ impl CoreMLRequest {
             ffi::vn_coreml_feature_value_in_path(
                 image_c.as_ptr(),
                 model_c.as_ptr(),
-                input_feature_c.as_ref().map_or(ptr::null(), |name| name.as_ptr()),
+                input_feature_c
+                    .as_ref()
+                    .map_or(ptr::null(), |name| name.as_ptr()),
                 input_feature_c.is_some(),
                 self.image_crop_and_scale_option as i32,
                 roi.map_or(0.0, |rect| rect.x),
@@ -237,22 +259,39 @@ impl CoreMLRequest {
             value: match raw.kind {
                 1 => CoreMLFeatureValue::Int64(raw.int64_value),
                 2 => CoreMLFeatureValue::Double(raw.double_value),
-                3 => CoreMLFeatureValue::String(string_from_ptr(raw.string_value).unwrap_or_default()),
+                3 => CoreMLFeatureValue::String(
+                    string_from_ptr(raw.string_value).unwrap_or_default(),
+                ),
                 4 => {
-                    let shape = if raw.multi_array_shape.is_null() || raw.multi_array_shape_count == 0 {
-                        Vec::new()
-                    } else {
-                        unsafe { std::slice::from_raw_parts(raw.multi_array_shape, raw.multi_array_shape_count) }.to_vec()
-                    };
-                    let values = if raw.multi_array_values.is_null() || raw.multi_array_value_count == 0 {
-                        Vec::new()
-                    } else {
-                        unsafe { std::slice::from_raw_parts(raw.multi_array_values, raw.multi_array_value_count) }.to_vec()
-                    };
+                    let shape =
+                        if raw.multi_array_shape.is_null() || raw.multi_array_shape_count == 0 {
+                            Vec::new()
+                        } else {
+                            unsafe {
+                                std::slice::from_raw_parts(
+                                    raw.multi_array_shape,
+                                    raw.multi_array_shape_count,
+                                )
+                            }
+                            .to_vec()
+                        };
+                    let values =
+                        if raw.multi_array_values.is_null() || raw.multi_array_value_count == 0 {
+                            Vec::new()
+                        } else {
+                            unsafe {
+                                std::slice::from_raw_parts(
+                                    raw.multi_array_values,
+                                    raw.multi_array_value_count,
+                                )
+                            }
+                            .to_vec()
+                        };
                     CoreMLFeatureValue::MultiArray { shape, values }
                 }
                 _ => CoreMLFeatureValue::Unknown {
-                    type_name: string_from_ptr(raw.type_name).unwrap_or_else(|| "unknown".to_string()),
+                    type_name: string_from_ptr(raw.type_name)
+                        .unwrap_or_else(|| "unknown".to_string()),
                 },
             },
         };
@@ -314,5 +353,9 @@ fn path_to_cstring(path: &Path, label: &str) -> Result<CString, VisionError> {
 }
 
 fn string_from_ptr(ptr: *mut c_char) -> Option<String> {
-    (!ptr.is_null()).then(|| unsafe { CStr::from_ptr(ptr) }.to_string_lossy().into_owned())
+    (!ptr.is_null()).then(|| {
+        unsafe { CStr::from_ptr(ptr) }
+            .to_string_lossy()
+            .into_owned()
+    })
 }

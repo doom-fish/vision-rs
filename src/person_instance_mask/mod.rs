@@ -48,8 +48,12 @@ unsafe impl Sync for PersonInstanceMask {}
 pub fn person_instance_mask(
     path: impl AsRef<Path>,
 ) -> Result<Option<PersonInstanceMask>, VisionError> {
-    let path_str = path.as_ref().to_str().ok_or_else(|| VisionError::InvalidArgument("non-UTF-8 path".into()))?;
-    let cpath = CString::new(path_str).map_err(|e| VisionError::InvalidArgument(format!("path NUL byte: {e}")))?;
+    let path_str = path
+        .as_ref()
+        .to_str()
+        .ok_or_else(|| VisionError::InvalidArgument("non-UTF-8 path".into()))?;
+    let cpath = CString::new(path_str)
+        .map_err(|e| VisionError::InvalidArgument(format!("path NUL byte: {e}")))?;
     let mut w: isize = 0;
     let mut h: isize = 0;
     let mut bpr: isize = 0;

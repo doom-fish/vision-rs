@@ -4,6 +4,70 @@ use std::path::{Path, PathBuf};
 
 use crate::registration::{HomographicAlignment, TranslationalAlignment};
 
+/// Function-pointer shape used by [`RequestProgress`] /
+/// [`RequestProgressProviding`].
+pub type RequestProgressHandler = fn(f64);
+
+/// Mirrors the observable state carried by `VNRequestProgressProviding`.
+#[derive(Debug, Clone, Copy, Default)]
+pub struct RequestProgress {
+    progress_handler: Option<RequestProgressHandler>,
+    indeterminate: bool,
+}
+
+impl RequestProgress {
+    #[must_use]
+    pub const fn new() -> Self {
+        Self {
+            progress_handler: None,
+            indeterminate: false,
+        }
+    }
+
+    #[must_use]
+    pub const fn with_progress_handler(mut self, progress_handler: RequestProgressHandler) -> Self {
+        self.progress_handler = Some(progress_handler);
+        self
+    }
+
+    #[must_use]
+    pub const fn with_indeterminate(mut self, indeterminate: bool) -> Self {
+        self.indeterminate = indeterminate;
+        self
+    }
+
+    #[must_use]
+    pub const fn progress_handler(&self) -> Option<RequestProgressHandler> {
+        self.progress_handler
+    }
+
+    #[must_use]
+    pub const fn is_indeterminate(&self) -> bool {
+        self.indeterminate
+    }
+}
+
+/// Rust mirror of `VNRequestProgressProviding`.
+pub trait RequestProgressProviding {
+    fn progress_handler(&self) -> Option<RequestProgressHandler>;
+    fn is_indeterminate(&self) -> bool;
+}
+
+impl RequestProgressProviding for RequestProgress {
+    fn progress_handler(&self) -> Option<RequestProgressHandler> {
+        self.progress_handler()
+    }
+
+    fn is_indeterminate(&self) -> bool {
+        self.is_indeterminate()
+    }
+}
+
+/// Rust mirror of `VNRequestRevisionProviding`.
+pub trait RequestRevisionProviding {
+    fn request_revision(&self) -> Option<usize>;
+}
+
 /// A normalized rectangle in Vision image coordinates (`0.0..=1.0`, lower-left origin).
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct NormalizedRect {
@@ -16,7 +80,12 @@ pub struct NormalizedRect {
 impl NormalizedRect {
     #[must_use]
     pub const fn new(x: f64, y: f64, width: f64, height: f64) -> Self {
-        Self { x, y, width, height }
+        Self {
+            x,
+            y,
+            width,
+            height,
+        }
     }
 }
 
@@ -85,6 +154,12 @@ impl ImageBasedRequest {
     }
 }
 
+impl RequestRevisionProviding for ImageBasedRequest {
+    fn request_revision(&self) -> Option<usize> {
+        self.revision()
+    }
+}
+
 /// A Rust wrapper for the abstract `VNTargetedImageRequest` base class.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TargetedImageRequest {
@@ -102,6 +177,12 @@ impl TargetedImageRequest {
     #[must_use]
     pub fn targeted_image_path(&self) -> &Path {
         &self.targeted_image_path
+    }
+}
+
+impl RequestRevisionProviding for TargetedImageRequest {
+    fn request_revision(&self) -> Option<usize> {
+        None
     }
 }
 
@@ -147,6 +228,12 @@ impl StatefulRequest {
     #[must_use]
     pub const fn minimum_latency_frame_count(&self) -> usize {
         self.minimum_latency_frame_count
+    }
+}
+
+impl RequestRevisionProviding for StatefulRequest {
+    fn request_revision(&self) -> Option<usize> {
+        None
     }
 }
 
@@ -215,6 +302,12 @@ impl TrackingRequest {
     }
 }
 
+impl RequestRevisionProviding for TrackingRequest {
+    fn request_revision(&self) -> Option<usize> {
+        None
+    }
+}
+
 /// A Rust wrapper for the abstract `VNImageRegistrationRequest` base class.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ImageRegistrationRequest {
@@ -237,6 +330,12 @@ impl ImageRegistrationRequest {
     #[must_use]
     pub const fn targeted_image_request(&self) -> &TargetedImageRequest {
         &self.targeted_image
+    }
+}
+
+impl RequestRevisionProviding for ImageRegistrationRequest {
+    fn request_revision(&self) -> Option<usize> {
+        RequestRevisionProviding::request_revision(&self.targeted_image)
     }
 }
 

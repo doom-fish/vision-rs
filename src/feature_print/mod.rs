@@ -64,9 +64,7 @@ impl FeaturePrint {
     /// Returns [`VisionError::InvalidArgument`] if the two prints
     /// have different element types or counts.
     pub fn l2_distance(&self, other: &Self) -> Result<f64, VisionError> {
-        if self.element_type != other.element_type
-            || self.element_count != other.element_count
-        {
+        if self.element_type != other.element_type || self.element_count != other.element_count {
             return Err(VisionError::InvalidArgument(
                 "feature print element type / count mismatch".into(),
             ));

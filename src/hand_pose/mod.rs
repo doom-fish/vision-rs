@@ -12,9 +12,85 @@ use std::path::Path;
 
 use crate::body_pose::{collect, DetectedBodyPose};
 pub use crate::body_pose::{DetectedBodyPose as DetectedHandPose, JointPoint};
-use crate::recognized_points::RecognizedPointsObservation;
 use crate::error::{from_swift, VisionError};
 use crate::ffi;
+use crate::recognized_points::{RecognizedPointsObservation, VisionRecognizedPoint};
+
+macro_rules! string_enum {
+    (
+        $(#[$meta:meta])*
+        pub enum $name:ident {
+            $( $variant:ident => $value:literal ),+ $(,)?
+        }
+    ) => {
+        $(#[$meta])*
+        #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+        pub enum $name {
+            $( $variant ),+
+        }
+
+        impl $name {
+            pub const ALL: &'static [Self] = &[
+                $( Self::$variant ),+
+            ];
+
+            #[must_use]
+            pub const fn as_str(self) -> &'static str {
+                match self {
+                    $( Self::$variant => $value ),+
+                }
+            }
+
+            #[allow(clippy::should_implement_trait)]
+            #[must_use]
+            pub fn from_str(value: &str) -> Option<Self> {
+                match value {
+                    $( $value => Some(Self::$variant), )+
+                    _ => None,
+                }
+            }
+        }
+    };
+}
+
+string_enum! {
+    /// Mirrors `VNHumanHandPoseObservationJointName`.
+    pub enum HumanHandPoseJointName {
+        Wrist => "VNHLKWRI",
+        ThumbCmc => "VNHLKTCMC",
+        ThumbMp => "VNHLKTMP",
+        ThumbIp => "VNHLKTIP",
+        ThumbTip => "VNHLKTTIP",
+        IndexMcp => "VNHLKIMCP",
+        IndexPip => "VNHLKIPIP",
+        IndexDip => "VNHLKIDIP",
+        IndexTip => "VNHLKITIP",
+        MiddleMcp => "VNHLKMMCP",
+        MiddlePip => "VNHLKMPIP",
+        MiddleDip => "VNHLKMDIP",
+        MiddleTip => "VNHLKMTIP",
+        RingMcp => "VNHLKRMCP",
+        RingPip => "VNHLKRPIP",
+        RingDip => "VNHLKRDIP",
+        RingTip => "VNHLKRTIP",
+        LittleMcp => "VNHLKPMCP",
+        LittlePip => "VNHLKPPIP",
+        LittleDip => "VNHLKPDIP",
+        LittleTip => "VNHLKPTIP",
+    }
+}
+
+string_enum! {
+    /// Mirrors `VNHumanHandPoseObservationJointsGroupName`.
+    pub enum HumanHandPoseJointGroupName {
+        Thumb => "VNHLRKT",
+        IndexFinger => "VNHLRKI",
+        MiddleFinger => "VNHLRKM",
+        RingFinger => "VNHLRKR",
+        LittleFinger => "VNHLRKP",
+        All => "VNIPOAll",
+    }
+}
 
 /// The `VNChirality` reported by `VNHumanHandPoseObservation`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -33,10 +109,66 @@ pub struct HumanHandPoseObservation {
     pub chirality: HandChirality,
 }
 
+const SUPPORTED_JOINT_NAMES: &[&str] = &[
+    HumanHandPoseJointName::Wrist.as_str(),
+    HumanHandPoseJointName::ThumbCmc.as_str(),
+    HumanHandPoseJointName::ThumbMp.as_str(),
+    HumanHandPoseJointName::ThumbIp.as_str(),
+    HumanHandPoseJointName::ThumbTip.as_str(),
+    HumanHandPoseJointName::IndexMcp.as_str(),
+    HumanHandPoseJointName::IndexPip.as_str(),
+    HumanHandPoseJointName::IndexDip.as_str(),
+    HumanHandPoseJointName::IndexTip.as_str(),
+    HumanHandPoseJointName::MiddleMcp.as_str(),
+    HumanHandPoseJointName::MiddlePip.as_str(),
+    HumanHandPoseJointName::MiddleDip.as_str(),
+    HumanHandPoseJointName::MiddleTip.as_str(),
+    HumanHandPoseJointName::RingMcp.as_str(),
+    HumanHandPoseJointName::RingPip.as_str(),
+    HumanHandPoseJointName::RingDip.as_str(),
+    HumanHandPoseJointName::RingTip.as_str(),
+    HumanHandPoseJointName::LittleMcp.as_str(),
+    HumanHandPoseJointName::LittlePip.as_str(),
+    HumanHandPoseJointName::LittleDip.as_str(),
+    HumanHandPoseJointName::LittleTip.as_str(),
+];
+
+const SUPPORTED_JOINT_GROUP_NAMES: &[&str] = &[
+    HumanHandPoseJointGroupName::Thumb.as_str(),
+    HumanHandPoseJointGroupName::IndexFinger.as_str(),
+    HumanHandPoseJointGroupName::MiddleFinger.as_str(),
+    HumanHandPoseJointGroupName::RingFinger.as_str(),
+    HumanHandPoseJointGroupName::LittleFinger.as_str(),
+    HumanHandPoseJointGroupName::All.as_str(),
+];
+
 impl HumanHandPoseObservation {
     #[must_use]
+    pub const fn supported_joint_name_keys() -> &'static [HumanHandPoseJointName] {
+        HumanHandPoseJointName::ALL
+    }
+
+    #[must_use]
+    pub const fn supported_joint_names() -> &'static [&'static str] {
+        SUPPORTED_JOINT_NAMES
+    }
+
+    #[must_use]
+    pub const fn supported_joint_group_name_keys() -> &'static [HumanHandPoseJointGroupName] {
+        HumanHandPoseJointGroupName::ALL
+    }
+
+    #[must_use]
     pub const fn supported_joint_group_names() -> &'static [&'static str] {
-        &["thumb", "indexFinger", "middleFinger", "ringFinger", "littleFinger", "all"]
+        SUPPORTED_JOINT_GROUP_NAMES
+    }
+
+    #[must_use]
+    pub fn recognized_point(
+        &self,
+        joint_name: HumanHandPoseJointName,
+    ) -> Option<VisionRecognizedPoint> {
+        self.recognized_points.recognized_point(joint_name.as_str())
     }
 
     #[must_use]

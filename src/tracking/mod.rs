@@ -14,9 +14,13 @@ use std::path::Path;
 use crate::error::VisionError;
 use crate::face_landmarks::LandmarkPoint;
 use crate::ffi;
+use crate::optical_flow::OpticalFlowAccuracy;
 use crate::recognize_text::BoundingBox;
 use crate::rectangles::RectangleObservation;
 use crate::registration::{HomographicAlignment, TranslationalAlignment};
+
+/// Public alias for `VNTrackOpticalFlowRequest.ComputationAccuracy`.
+pub type TrackOpticalFlowRequestComputationAccuracy = OpticalFlowAccuracy;
 
 /// Raw optical-flow pixel buffer copied out of Vision.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -207,6 +211,18 @@ impl RectangleTracker {
 }
 
 impl OpticalFlowTracker {
+    /// The computation-accuracy values exposed by `VNTrackOpticalFlowRequest`.
+    #[must_use]
+    pub const fn supported_computation_accuracies(
+    ) -> &'static [TrackOpticalFlowRequestComputationAccuracy] {
+        &[
+            TrackOpticalFlowRequestComputationAccuracy::Low,
+            TrackOpticalFlowRequestComputationAccuracy::Medium,
+            TrackOpticalFlowRequestComputationAccuracy::High,
+            TrackOpticalFlowRequestComputationAccuracy::VeryHigh,
+        ]
+    }
+
     /// Create a new optical-flow tracker seeded with the reference image.
     ///
     /// # Errors
@@ -217,9 +233,8 @@ impl OpticalFlowTracker {
         let image_c = path_to_cstring(reference_path.as_ref(), "reference path")?;
         let mut handle: *mut c_void = ptr::null_mut();
         let mut err: *mut c_char = ptr::null_mut();
-        let status = unsafe {
-            ffi::vn_optical_flow_tracker_create(image_c.as_ptr(), &mut handle, &mut err)
-        };
+        let status =
+            unsafe { ffi::vn_optical_flow_tracker_create(image_c.as_ptr(), &mut handle, &mut err) };
         if status != ffi::status::OK {
             return Err(error_from_status(status, err));
         }
@@ -396,14 +411,21 @@ macro_rules! impl_tracker_drop {
 impl_tracker_drop!(ObjectTracker, ffi::vn_object_tracker_release);
 impl_tracker_drop!(RectangleTracker, ffi::vn_rectangle_tracker_release);
 impl_tracker_drop!(OpticalFlowTracker, ffi::vn_optical_flow_tracker_release);
-impl_tracker_drop!(TranslationalImageTracker, ffi::vn_translational_image_tracker_release);
-impl_tracker_drop!(HomographicImageTracker, ffi::vn_homographic_image_tracker_release);
+impl_tracker_drop!(
+    TranslationalImageTracker,
+    ffi::vn_translational_image_tracker_release
+);
+impl_tracker_drop!(
+    HomographicImageTracker,
+    ffi::vn_homographic_image_tracker_release
+);
 
 fn path_to_cstring(path: &Path, label: &str) -> Result<CString, VisionError> {
     let path_str = path
         .to_str()
         .ok_or_else(|| VisionError::InvalidArgument(format!("non-UTF-8 {label}")))?;
-    CString::new(path_str).map_err(|e| VisionError::InvalidArgument(format!("{label} NUL byte: {e}")))
+    CString::new(path_str)
+        .map_err(|e| VisionError::InvalidArgument(format!("{label} NUL byte: {e}")))
 }
 
 const fn rectangle_to_raw(rect: &RectangleObservation) -> ffi::RectangleObservationRaw {

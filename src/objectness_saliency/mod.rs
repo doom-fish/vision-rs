@@ -27,18 +27,17 @@ pub struct ObjectnessRegion {
 /// Returns [`VisionError`] when the image fails to load or the
 /// Vision request errors.
 pub fn objectness_saliency(path: impl AsRef<Path>) -> Result<Vec<ObjectnessRegion>, VisionError> {
-    let path_str = path.as_ref().to_str().ok_or_else(|| VisionError::InvalidArgument("non-UTF-8 path".into()))?;
-    let cpath = CString::new(path_str).map_err(|e| VisionError::InvalidArgument(format!("path NUL byte: {e}")))?;
+    let path_str = path
+        .as_ref()
+        .to_str()
+        .ok_or_else(|| VisionError::InvalidArgument("non-UTF-8 path".into()))?;
+    let cpath = CString::new(path_str)
+        .map_err(|e| VisionError::InvalidArgument(format!("path NUL byte: {e}")))?;
     let mut rects_ptr: *mut ffi::SimpleRectRaw = ptr::null_mut();
     let mut count: isize = 0;
     let mut err: *mut std::ffi::c_char = ptr::null_mut();
     let status = unsafe {
-        ffi::vn_objectness_saliency_in_path(
-            cpath.as_ptr(),
-            &mut rects_ptr,
-            &mut count,
-            &mut err,
-        )
+        ffi::vn_objectness_saliency_in_path(cpath.as_ptr(), &mut rects_ptr, &mut count, &mut err)
     };
     if status != ffi::status::OK {
         let msg = unsafe { take_err(err) };

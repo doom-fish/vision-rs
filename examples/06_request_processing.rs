@@ -40,7 +40,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("Video  : {}", video.display());
 
     let image_results = ImageRequestHandler::new(&image_a).perform(&request)?;
-    println!("\n✅ image request handler ({} observations)", image_results.len());
+    println!(
+        "\n✅ image request handler ({} observations)",
+        image_results.len()
+    );
     for observation in image_results.iter().take(3) {
         println!(
             "  [{}] '{}' uuid={} bbox=({:.3}, {:.3}, {:.3}, {:.3})",
@@ -65,11 +68,19 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         &request,
         VideoProcessingOptions::new().with_cadence(VideoCadence::FrameRate(1)),
     )?;
-    println!("\n✅ video processor ({} observations)", video_results.len());
+    println!(
+        "\n✅ video processor ({} observations)",
+        video_results.len()
+    );
     for observation in video_results.iter().take(5) {
         let time_range = observation.observation.time_range.map_or_else(
             || "n/a".to_string(),
-            |range| format!("{:.2}s + {:.2}s", range.start_seconds, range.duration_seconds),
+            |range| {
+                format!(
+                    "{:.2}s + {:.2}s",
+                    range.start_seconds, range.duration_seconds
+                )
+            },
         );
         println!(
             "  [{}] '{}' @ {} uuid={}",

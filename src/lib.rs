@@ -9,16 +9,18 @@
 //! OCR, object detection, face landmarks, and other on-device computer
 //! vision tasks.
 //!
-//! v0.15.2 keeps the full Apple Vision request surface, adds explicit
-//! base request/observation wrappers for the remaining gaps, and ships a
-//! fully-implemented audited coverage matrix plus a split Swift bridge.
+//! v0.15.3 keeps the full Apple Vision request surface, adds explicit
+//! base request/observation wrappers for SDK constants/protocols/utilities,
+//! and ships a fully-implemented audited coverage matrix plus a split Swift bridge.
 
 #![cfg_attr(docsrs, feature(doc_cfg))]
 
 pub mod error;
 pub mod ffi;
+pub mod geometry;
 pub mod recognized_points;
 pub mod request_base;
+pub mod sdk;
 
 #[cfg(feature = "recognize_text")]
 #[cfg_attr(docsrs, doc(cfg(feature = "recognize_text")))]
@@ -103,64 +105,94 @@ pub mod tracking;
 // v0.13: new request types
 pub mod animal_body_pose;
 pub mod human_body_pose_3d;
-pub mod text_rectangles;
 pub mod objectness_saliency;
 pub mod person_instance_mask;
-pub mod trajectories;
 pub mod registration;
+pub mod text_rectangles;
+pub mod trajectories;
 
 pub use error::VisionError;
+pub use geometry::{
+    element_type_size, image_point_for_face_landmark_point, image_point_for_normalized_point,
+    image_point_for_normalized_point_using_region_of_interest, image_rect_for_normalized_rect,
+    image_rect_for_normalized_rect_using_region_of_interest,
+    normalized_face_bounding_box_point_for_landmark_point, normalized_identity_rect,
+    normalized_point_for_image_point, normalized_point_for_image_point_using_region_of_interest,
+    normalized_rect_for_image_rect, normalized_rect_for_image_rect_using_region_of_interest,
+    normalized_rect_is_identity_rect, Transform3D, VisionCircle, VisionGeometryUtils, VisionPoint,
+    VisionPoint3D, VisionVector,
+};
 pub use recognized_points::{
-    RecognizedPoint, RecognizedPoint3D, RecognizedPoints3DObservation,
-    RecognizedPointsObservation,
+    HumanBodyRecognizedPoint3D, RecognizedPoint, RecognizedPoint3D, RecognizedPoints3DObservation,
+    RecognizedPointsObservation, VisionDetectedPoint, VisionRecognizedPoint,
+    VisionRecognizedPoint3D,
 };
 pub use request_base::{
     ImageAlignmentObservation, ImageBasedRequest, ImageRegistrationRequest, NormalizedRect,
-    PixelBufferObservation, StatefulRequest, TargetedImageRequest, TrackingLevel,
+    PixelBufferObservation, RequestProgress, RequestProgressHandler, RequestProgressProviding,
+    RequestRevisionProviding, StatefulRequest, TargetedImageRequest, TrackingLevel,
     TrackingRequest,
+};
+pub use sdk::{
+    vision_version_number, AnimalIdentifier, BarcodeCompositeType, BarcodeSymbology, ComputeStage,
+    ElementType, ImageCropAndScaleOption, ImageOption, PointsClassification,
+    RecognizedPoint3DGroupKey, RecognizedPointGroupKey, VisionErrorCode, VISION_ERROR_DOMAIN,
 };
 
 #[cfg(feature = "recognize_text")]
 pub use processing::{
     ImageRequestHandler, Observation, RecognizedTextObservation, Request, RequestKind,
     SequenceRequestHandler, TimeRange, VideoCadence, VideoProcessingOptions, VideoProcessor,
+    VideoProcessorCadence, VideoProcessorFrameRateCadence, VideoProcessorRequestProcessingOptions,
+    VideoProcessorTimeIntervalCadence,
 };
 
 #[cfg(feature = "recognize_text")]
-pub use recognize_text::{BoundingBox, RecognitionLevel, RecognizedText, TextRecognizer};
+pub use recognize_text::{
+    BoundingBox, RecognitionLevel, RecognizedText, RecognizedTextCandidate, TextRecognizer,
+};
 
 #[cfg(feature = "detect_faces")]
 pub use detect_faces::{DetectedFace, FaceDetector};
 
 #[cfg(feature = "detect_barcodes")]
-pub use detect_barcodes::{detect_barcodes_in_path, DetectedBarcode};
+pub use detect_barcodes::{
+    detect_barcodes_in_path, BarcodeCompositeType as DetectedBarcodeCompositeType,
+    BarcodeSymbology as DetectedBarcodeSymbology, DetectedBarcode,
+};
 
 #[cfg(feature = "saliency")]
 pub use saliency::{attention_saliency_in_path, SalientRegion};
 
 #[cfg(feature = "face_landmarks")]
-pub use face_landmarks::{detect_face_landmarks_in_path, FaceWithLandmarks, LandmarkPoint};
+pub use face_landmarks::{
+    detect_face_landmarks_in_path, FaceLandmarkRegion, FaceLandmarkRegion2D, FaceLandmarks,
+    FaceLandmarks2D, FaceLandmarksRequest, FaceObservationAccepting, FaceWithLandmarks,
+    LandmarkPoint, RequestFaceLandmarksConstellation,
+};
 
 #[cfg(feature = "body_pose")]
 pub use body_pose::{
-    detect_human_body_pose_in_path, detect_human_body_pose_observations_in_path,
-    DetectedBodyPose, HumanBodyPoseObservation, JointPoint,
+    detect_human_body_pose_in_path, detect_human_body_pose_observations_in_path, DetectedBodyPose,
+    HumanBodyPoseJointGroupName, HumanBodyPoseJointName, HumanBodyPoseObservation, JointPoint,
 };
 
 #[cfg(feature = "hand_pose")]
 pub use hand_pose::{
-    detect_human_hand_pose_in_path, detect_human_hand_pose_observations_in_path,
-    DetectedHandPose, HandChirality, HumanHandPoseObservation,
+    detect_human_hand_pose_in_path, detect_human_hand_pose_observations_in_path, DetectedHandPose,
+    HandChirality, HumanHandPoseJointGroupName, HumanHandPoseJointName, HumanHandPoseObservation,
 };
 
 #[cfg(feature = "contours")]
 pub use contours::{
-    detect_contours_in_path, detect_contours_observation_in_path, Contour,
-    ContourOptions, ContoursObservation,
+    detect_contours_in_path, detect_contours_observation_in_path, Contour, ContourOptions,
+    ContoursObservation, VisionContour,
 };
 
 #[cfg(feature = "animals")]
-pub use animals::{recognize_animals_in_path, RecognizedAnimal};
+pub use animals::{
+    recognize_animals_in_path, AnimalIdentifier as RecognizedAnimalIdentifier, RecognizedAnimal,
+};
 
 #[cfg(feature = "classify")]
 pub use classify::{classify_image_in_path, Classification};
@@ -173,8 +205,7 @@ pub use rectangles::{
 
 #[cfg(feature = "horizon")]
 pub use horizon::{
-    detect_horizon_in_path, detect_horizon_observation_in_path, AffineTransform,
-    HorizonObservation,
+    detect_horizon_in_path, detect_horizon_observation_in_path, AffineTransform, HorizonObservation,
 };
 
 #[cfg(feature = "feature_print")]
@@ -185,104 +216,147 @@ pub use humans::{detect_human_rectangles_in_path, DetectedHuman};
 
 #[cfg(feature = "aesthetics")]
 pub use aesthetics::{
-    calculate_aesthetics_scores_in_path, detect_face_capture_quality_in_path,
-    AestheticsScores, FaceCaptureQuality,
+    calculate_aesthetics_scores_in_path, detect_face_capture_quality_in_path, AestheticsScores,
+    FaceCaptureQuality,
 };
 
 #[cfg(feature = "segmentation")]
 pub use segmentation::{
-    generate_foreground_instance_mask_in_path, generate_foreground_instance_mask_observation_in_path,
-    generate_person_segmentation_in_path, InstanceMask, InstanceMaskObservation,
-    SegmentationMask, SegmentationQuality,
+    generate_foreground_instance_mask_in_path,
+    generate_foreground_instance_mask_observation_in_path, generate_person_segmentation_in_path,
+    InstanceMask, InstanceMaskObservation, SegmentationMask, SegmentationQuality,
 };
 
 #[cfg(feature = "optical_flow")]
 pub use optical_flow::{
-    generate_optical_flow_in_paths, generate_optical_flow_observation_in_paths,
-    OpticalFlowAccuracy,
+    generate_optical_flow_in_paths, generate_optical_flow_observation_in_paths, OpticalFlowAccuracy,
 };
 
 #[cfg(feature = "coreml")]
 pub use coreml::{
     coreml_classify_in_path, coreml_feature_value_in_path, CoreMLFeatureValue,
-    CoreMLFeatureValueObservation, CoreMLImageCropAndScaleOption, CoreMLModel,
-    CoreMLRequest,
+    CoreMLFeatureValueObservation, CoreMLImageCropAndScaleOption, CoreMLModel, CoreMLRequest,
 };
 
-pub use animal_body_pose::{detect_animal_body_pose, AnimalJoint};
+pub use animal_body_pose::{
+    detect_animal_body_pose, AnimalBodyPoseJointGroupName, AnimalBodyPoseJointName, AnimalJoint,
+};
 pub use human_body_pose_3d::{
     detect_human_body_pose_3d, detect_human_body_pose_3d_observations,
-    BodyHeightEstimation, HumanBodyPose3DObservation, HumanJoint3D,
+    detect_human_body_recognized_points_3d, BodyHeightEstimation, HumanBodyPose3DJointGroupName,
+    HumanBodyPose3DJointName, HumanBodyPose3DObservation,
+    HumanBodyPose3DObservationHeightEstimation, HumanJoint3D,
+};
+pub use objectness_saliency::{objectness_saliency, ObjectnessRegion};
+pub use person_instance_mask::{person_instance_mask, PersonInstanceMask};
+pub use registration::{
+    register_homographic, register_homographic_observation, register_translational,
+    register_translational_observation, HomographicAlignment, TranslationalAlignment,
 };
 pub use text_rectangles::{
     detect_text_observations, detect_text_rectangles, TextObservation, TextRect,
     TextRectanglesRequest,
 };
-pub use objectness_saliency::{objectness_saliency, ObjectnessRegion};
-pub use person_instance_mask::{person_instance_mask, PersonInstanceMask};
 pub use trajectories::{detect_trajectories, Trajectory};
-pub use registration::{
-    register_homographic, register_homographic_observation, register_translational,
-    register_translational_observation, HomographicAlignment, TranslationalAlignment,
-};
 
 #[cfg(feature = "tracking")]
 pub use tracking::{
-    HomographicImageTracker, ObjectTracker, OpticalFlowFrame, OpticalFlowTracker,
-    RectangleTracker, TranslationalImageTracker,
+    HomographicImageTracker, ObjectTracker, OpticalFlowFrame, OpticalFlowTracker, RectangleTracker,
+    TrackOpticalFlowRequestComputationAccuracy, TranslationalImageTracker,
 };
 
 /// Common imports.
 pub mod prelude {
+    pub use crate::animal_body_pose::{
+        detect_animal_body_pose, AnimalBodyPoseJointGroupName, AnimalBodyPoseJointName, AnimalJoint,
+    };
     #[cfg(feature = "animals")]
-    pub use crate::animals::{recognize_animals_in_path, RecognizedAnimal};
+    pub use crate::animals::{
+        recognize_animals_in_path, AnimalIdentifier as RecognizedAnimalIdentifier, RecognizedAnimal,
+    };
     #[cfg(feature = "body_pose")]
     pub use crate::body_pose::{
         detect_human_body_pose_in_path, detect_human_body_pose_observations_in_path,
-        DetectedBodyPose, HumanBodyPoseObservation, JointPoint,
+        DetectedBodyPose, HumanBodyPoseJointGroupName, HumanBodyPoseJointName,
+        HumanBodyPoseObservation, JointPoint,
     };
     #[cfg(feature = "classify")]
     pub use crate::classify::{classify_image_in_path, Classification};
     #[cfg(feature = "contours")]
     pub use crate::contours::{
-        detect_contours_in_path, detect_contours_observation_in_path, Contour,
-        ContourOptions, ContoursObservation,
+        detect_contours_in_path, detect_contours_observation_in_path, Contour, ContourOptions,
+        ContoursObservation, VisionContour,
+    };
+    #[cfg(feature = "coreml")]
+    pub use crate::coreml::{
+        coreml_classify_in_path, coreml_feature_value_in_path, CoreMLFeatureValue,
+        CoreMLFeatureValueObservation, CoreMLImageCropAndScaleOption, CoreMLModel, CoreMLRequest,
     };
     #[cfg(feature = "detect_barcodes")]
-    pub use crate::detect_barcodes::{detect_barcodes_in_path, DetectedBarcode};
+    pub use crate::detect_barcodes::{
+        detect_barcodes_in_path, BarcodeCompositeType as DetectedBarcodeCompositeType,
+        BarcodeSymbology as DetectedBarcodeSymbology, DetectedBarcode,
+    };
     #[cfg(feature = "detect_faces")]
     pub use crate::detect_faces::{DetectedFace, FaceDetector};
     pub use crate::error::VisionError;
-    pub use crate::recognized_points::{
-        RecognizedPoint, RecognizedPoint3D, RecognizedPoints3DObservation,
-        RecognizedPointsObservation,
-    };
-    pub use crate::request_base::{
-        ImageAlignmentObservation, ImageBasedRequest, ImageRegistrationRequest, NormalizedRect,
-        PixelBufferObservation, StatefulRequest, TargetedImageRequest, TrackingLevel,
-        TrackingRequest,
-    };
     #[cfg(feature = "face_landmarks")]
     pub use crate::face_landmarks::{
-        detect_face_landmarks_in_path, FaceWithLandmarks, LandmarkPoint,
+        detect_face_landmarks_in_path, FaceLandmarkRegion, FaceLandmarkRegion2D, FaceLandmarks,
+        FaceLandmarks2D, FaceLandmarksRequest, FaceObservationAccepting, FaceWithLandmarks,
+        LandmarkPoint, RequestFaceLandmarksConstellation,
     };
     #[cfg(feature = "feature_print")]
     pub use crate::feature_print::{generate_image_feature_print_in_path, FeaturePrint};
+    pub use crate::geometry::{
+        element_type_size, image_point_for_face_landmark_point, image_point_for_normalized_point,
+        image_point_for_normalized_point_using_region_of_interest, image_rect_for_normalized_rect,
+        image_rect_for_normalized_rect_using_region_of_interest,
+        normalized_face_bounding_box_point_for_landmark_point, normalized_identity_rect,
+        normalized_point_for_image_point,
+        normalized_point_for_image_point_using_region_of_interest, normalized_rect_for_image_rect,
+        normalized_rect_for_image_rect_using_region_of_interest, normalized_rect_is_identity_rect,
+        Transform3D, VisionCircle, VisionGeometryUtils, VisionPoint, VisionPoint3D, VisionVector,
+    };
     #[cfg(feature = "hand_pose")]
     pub use crate::hand_pose::{
         detect_human_hand_pose_in_path, detect_human_hand_pose_observations_in_path,
-        DetectedHandPose, HandChirality, HumanHandPoseObservation,
+        DetectedHandPose, HandChirality, HumanHandPoseJointGroupName, HumanHandPoseJointName,
+        HumanHandPoseObservation,
     };
     #[cfg(feature = "horizon")]
     pub use crate::horizon::{
         detect_horizon_in_path, detect_horizon_observation_in_path, AffineTransform,
         HorizonObservation,
     };
-    #[cfg(feature = "humans")]
-    pub use crate::humans::{detect_human_rectangles_in_path, DetectedHuman};
     pub use crate::human_body_pose_3d::{
         detect_human_body_pose_3d, detect_human_body_pose_3d_observations,
-        BodyHeightEstimation, HumanBodyPose3DObservation, HumanJoint3D,
+        detect_human_body_recognized_points_3d, BodyHeightEstimation,
+        HumanBodyPose3DJointGroupName, HumanBodyPose3DJointName, HumanBodyPose3DObservation,
+        HumanBodyPose3DObservationHeightEstimation, HumanJoint3D,
+    };
+    #[cfg(feature = "humans")]
+    pub use crate::humans::{detect_human_rectangles_in_path, DetectedHuman};
+    #[cfg(feature = "optical_flow")]
+    pub use crate::optical_flow::{
+        generate_optical_flow_in_paths, generate_optical_flow_observation_in_paths,
+        OpticalFlowAccuracy,
+    };
+    #[cfg(feature = "recognize_text")]
+    pub use crate::processing::{
+        ImageRequestHandler, Observation, RecognizedTextObservation, Request, RequestKind,
+        SequenceRequestHandler, TimeRange, VideoCadence, VideoProcessingOptions, VideoProcessor,
+        VideoProcessorCadence, VideoProcessorFrameRateCadence,
+        VideoProcessorRequestProcessingOptions, VideoProcessorTimeIntervalCadence,
+    };
+    #[cfg(feature = "recognize_text")]
+    pub use crate::recognize_text::{
+        BoundingBox, RecognitionLevel, RecognizedText, RecognizedTextCandidate, TextRecognizer,
+    };
+    pub use crate::recognized_points::{
+        HumanBodyRecognizedPoint3D, RecognizedPoint, RecognizedPoint3D,
+        RecognizedPoints3DObservation, RecognizedPointsObservation, VisionDetectedPoint,
+        VisionRecognizedPoint, VisionRecognizedPoint3D,
     };
     #[cfg(feature = "rectangles")]
     pub use crate::rectangles::{
@@ -293,20 +367,23 @@ pub mod prelude {
         register_homographic, register_homographic_observation, register_translational,
         register_translational_observation, HomographicAlignment, TranslationalAlignment,
     };
-    #[cfg(feature = "recognize_text")]
-    pub use crate::processing::{
-        ImageRequestHandler, Observation, RecognizedTextObservation, Request, RequestKind,
-        SequenceRequestHandler, TimeRange, VideoCadence, VideoProcessingOptions, VideoProcessor,
-    };
-    #[cfg(feature = "recognize_text")]
-    pub use crate::recognize_text::{
-        BoundingBox, RecognitionLevel, RecognizedText, TextRecognizer,
+    pub use crate::request_base::{
+        ImageAlignmentObservation, ImageBasedRequest, ImageRegistrationRequest, NormalizedRect,
+        PixelBufferObservation, RequestProgress, RequestProgressHandler, RequestProgressProviding,
+        RequestRevisionProviding, StatefulRequest, TargetedImageRequest, TrackingLevel,
+        TrackingRequest,
     };
     #[cfg(feature = "saliency")]
     pub use crate::saliency::{attention_saliency_in_path, SalientRegion};
+    pub use crate::sdk::{
+        vision_version_number, AnimalIdentifier, BarcodeCompositeType, BarcodeSymbology,
+        ComputeStage, ElementType, ImageCropAndScaleOption, ImageOption, PointsClassification,
+        RecognizedPoint3DGroupKey, RecognizedPointGroupKey, VisionErrorCode, VISION_ERROR_DOMAIN,
+    };
     #[cfg(feature = "segmentation")]
     pub use crate::segmentation::{
-        generate_foreground_instance_mask_in_path, generate_foreground_instance_mask_observation_in_path,
+        generate_foreground_instance_mask_in_path,
+        generate_foreground_instance_mask_observation_in_path,
         generate_person_segmentation_in_path, InstanceMask, InstanceMaskObservation,
         SegmentationMask, SegmentationQuality,
     };
@@ -314,20 +391,9 @@ pub mod prelude {
         detect_text_observations, detect_text_rectangles, TextObservation, TextRect,
         TextRectanglesRequest,
     };
-    #[cfg(feature = "optical_flow")]
-    pub use crate::optical_flow::{
-        generate_optical_flow_in_paths, generate_optical_flow_observation_in_paths,
-        OpticalFlowAccuracy,
-    };
-    #[cfg(feature = "coreml")]
-    pub use crate::coreml::{
-        coreml_classify_in_path, coreml_feature_value_in_path, CoreMLFeatureValue,
-        CoreMLFeatureValueObservation, CoreMLImageCropAndScaleOption, CoreMLModel,
-        CoreMLRequest,
-    };
     #[cfg(feature = "tracking")]
     pub use crate::tracking::{
         HomographicImageTracker, ObjectTracker, OpticalFlowFrame, OpticalFlowTracker,
-        RectangleTracker, TranslationalImageTracker,
+        RectangleTracker, TrackOpticalFlowRequestComputationAccuracy, TranslationalImageTracker,
     };
 }

@@ -121,6 +121,10 @@ public struct VNHumanJoint3DRaw {
     public var y: Float
     public var z: Float
     public var confidence: Float
+    public var local_x: Float
+    public var local_y: Float
+    public var local_z: Float
+    public var parent_joint: UnsafeMutablePointer<CChar>?
 }
 
 @_cdecl("vn_detect_human_body_pose_3d_in_path")
@@ -158,10 +162,15 @@ public func vn_detect_human_body_pose_3d_in_path(
         for n in names {
             guard let pt = try? obs.recognizedPoint(n) else { continue }
             let pos = pt.position
+            let local = pt.localPosition
             joints.append(VNHumanJoint3DRaw(
                 name: ffiString(n.rawValue.rawValue),
                 x: pos.columns.3.x, y: pos.columns.3.y, z: pos.columns.3.z,
-                confidence: 1.0
+                confidence: 1.0,
+                local_x: local.columns.3.x,
+                local_y: local.columns.3.y,
+                local_z: local.columns.3.z,
+                parent_joint: ffiString(pt.parentJoint.rawValue.rawValue)
             ))
         }
         if joints.isEmpty { return VN_OK }
@@ -180,6 +189,7 @@ public func vn_human_joints_3d_free(_ ptr: UnsafeMutableRawPointer?, _ count: In
     let typed = ptr.assumingMemoryBound(to: VNHumanJoint3DRaw.self)
     for i in 0..<count {
         vn_string_free(typed[i].name)
+        vn_string_free(typed[i].parent_joint)
     }
     typed.deinitialize(count: count)
     typed.deallocate()

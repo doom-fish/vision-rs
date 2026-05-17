@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.15.3] - 2026-05-17
+
+### Added (audit-gap completion)
+
+- Added dedicated SDK wrapper modules **`sdk`** and **`geometry`**, covering the remaining public Vision constants / enums / helpers audited from `MacOSX26.2.sdk`: `AnimalIdentifier`, `BarcodeSymbology`, `BarcodeCompositeType`, `ComputeStage`, `ImageOption`, `ImageCropAndScaleOption`, `ElementType`, `PointsClassification`, `VisionErrorCode`, `VISION_ERROR_DOMAIN`, `vision_version_number`, `VisionPoint`, `VisionVector`, `VisionCircle`, `VisionPoint3D`, `VisionGeometryUtils`, and the `VNUtils` free-function family.
+- Added explicit wrappers for the remaining landmark / recognized-point / protocol surfaces: `VisionDetectedPoint`, `VisionRecognizedPoint`, `VisionRecognizedPoint3D`, `HumanBodyRecognizedPoint3D`, `FaceLandmarkRegion`, `FaceLandmarkRegion2D`, `FaceLandmarks`, `FaceLandmarks2D`, `FaceLandmarksRequest`, `RequestFaceLandmarksConstellation`, `FaceObservationAccepting`, `RequestProgress`, `RequestProgressProviding`, and `RequestRevisionProviding`.
+- Added dedicated pose / cadence / alias surfaces needed to close the remaining SDK audit gaps: animal / body / hand / 3D human joint + group enums, `VideoProcessorCadence`, `VideoProcessorFrameRateCadence`, `VideoProcessorTimeIntervalCadence`, `VideoProcessorRequestProcessingOptions`, `TrackOpticalFlowRequestComputationAccuracy`, `RecognizedTextCandidate`, and the `VisionContour` alias.
+- Expanded the 3D human-body bridge to surface `VNHumanBodyRecognizedPoint3D` details (local position + parent joint) and added smoke-test coverage for every new symbol family.
+- Refreshed `COVERAGE_AUDIT.md` to mark all 222 current non-exempt public SDK symbols as wrapped.
+
 ## [0.15.2] - 2026-05-17
 
 ### Added (request/observation wrapper completion)
