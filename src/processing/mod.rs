@@ -246,6 +246,7 @@ impl ImageRequestHandler {
         let mut out_array: *mut c_void = ptr::null_mut();
         let mut out_count: usize = 0;
         let mut err_msg: *mut c_char = ptr::null_mut();
+        // SAFETY: all pointer arguments are valid stack locations or bridge-owned handles; strings are valid C strings for the duration of the call.
         let status = unsafe {
             ffi::vn_image_request_handler_perform_text_request(
                 image_c.as_ptr(),
@@ -261,6 +262,7 @@ impl ImageRequestHandler {
             )
         };
         if status != ffi::status::OK {
+            // SAFETY: the error pointer is either null or a bridge-allocated C string; `from_swift` frees it.
             return Err(unsafe { from_swift(status, err_msg) });
         }
         Ok(collect_request_observations(out_array, out_count))
@@ -282,8 +284,10 @@ impl SequenceRequestHandler {
     pub fn new() -> Result<Self, VisionError> {
         let mut handle: *mut c_void = ptr::null_mut();
         let mut err_msg: *mut c_char = ptr::null_mut();
+        // SAFETY: all pointer arguments are valid stack locations or bridge-owned handles; strings are valid C strings for the duration of the call.
         let status = unsafe { ffi::vn_sequence_request_handler_create(&mut handle, &mut err_msg) };
         if status != ffi::status::OK {
+            // SAFETY: the error pointer is either null or a bridge-allocated C string; `from_swift` frees it.
             return Err(unsafe { from_swift(status, err_msg) });
         }
         if handle.is_null() {
@@ -311,6 +315,7 @@ impl SequenceRequestHandler {
         let mut out_array: *mut c_void = ptr::null_mut();
         let mut out_count: usize = 0;
         let mut err_msg: *mut c_char = ptr::null_mut();
+        // SAFETY: all pointer arguments are valid stack locations or bridge-owned handles; strings are valid C strings for the duration of the call.
         let status = unsafe {
             ffi::vn_sequence_request_handler_perform_text_request(
                 self.handle,
@@ -327,6 +332,7 @@ impl SequenceRequestHandler {
             )
         };
         if status != ffi::status::OK {
+            // SAFETY: the error pointer is either null or a bridge-allocated C string; `from_swift` frees it.
             return Err(unsafe { from_swift(status, err_msg) });
         }
         Ok(collect_request_observations(out_array, out_count))
@@ -336,6 +342,7 @@ impl SequenceRequestHandler {
 impl Drop for SequenceRequestHandler {
     fn drop(&mut self) {
         if !self.handle.is_null() {
+            // SAFETY: `self.handle` is a live bridge-owned handle and this drop path releases it exactly once.
             unsafe { ffi::vn_sequence_request_handler_free(self.handle) };
         }
     }
@@ -479,6 +486,7 @@ impl VideoProcessor {
         let mut out_array: *mut c_void = ptr::null_mut();
         let mut out_count: usize = 0;
         let mut err_msg: *mut c_char = ptr::null_mut();
+        // SAFETY: all pointer arguments are valid stack locations or bridge-owned handles; strings are valid C strings for the duration of the call.
         let status = unsafe {
             ffi::vn_video_processor_analyze_text_request(
                 video_c.as_ptr(),
@@ -496,6 +504,7 @@ impl VideoProcessor {
             )
         };
         if status != ffi::status::OK {
+            // SAFETY: the error pointer is either null or a bridge-allocated C string; `from_swift` frees it.
             return Err(unsafe { from_swift(status, err_msg) });
         }
         Ok(collect_request_observations(out_array, out_count))
@@ -540,6 +549,7 @@ fn collect_request_observations(
     let typed = array.cast::<ffi::RequestObservationRaw>();
     let mut observations = Vec::with_capacity(count);
     for index in 0..count {
+        // SAFETY: the pointer is valid for the reported element count; the index is in bounds.
         let raw = unsafe { &*typed.add(index) };
         let uuid = c_string_or_empty(raw.uuid);
         let text = c_string_or_empty(raw.text);
@@ -563,6 +573,7 @@ fn collect_request_observations(
         });
     }
 
+    // SAFETY: the pointer/count pair was allocated by the bridge and is freed exactly once here.
     unsafe { ffi::vn_request_observations_free(array, count) };
     observations
 }
@@ -571,6 +582,7 @@ fn c_string_or_empty(ptr: *mut c_char) -> String {
     if ptr.is_null() {
         String::new()
     } else {
+        // SAFETY: the C string pointer is non-null (checked above) and valid for the duration of this borrow.
         unsafe { CStr::from_ptr(ptr) }
             .to_string_lossy()
             .into_owned()
@@ -604,6 +616,7 @@ pub fn _test_helper_render_text_video(
         CString::new(second_text).map_err(|err| VisionError::InvalidArgument(err.to_string()))?;
     let path_c = CString::new(path.to_string_lossy().as_ref())
         .map_err(|err| VisionError::InvalidArgument(err.to_string()))?;
+    // SAFETY: all pointer arguments are valid stack locations or bridge-owned handles; strings are valid C strings for the duration of the call.
     let status = unsafe {
         ffi::vn_test_helper_render_text_video(
             first_c.as_ptr(),

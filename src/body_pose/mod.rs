@@ -274,9 +274,17 @@ pub fn detect_human_body_pose_observations_in_path(
 pub fn detect_human_body_pose_in_path(
     path: impl AsRef<Path>,
 ) -> Result<Vec<DetectedBodyPose>, VisionError> {
+    // SAFETY: `run` validates the path and the supplied bridge function matches its expected contract.
     unsafe { run(path, ffi::vn_detect_human_body_pose_in_path) }
 }
 
+/// Call the supplied pose-detection bridge function and collect owned results.
+///
+/// # Safety
+///
+/// `f` must be a valid bridge function matching this signature and must
+/// populate the out-parameters using the allocation contract expected by
+/// [`collect`].
 pub(crate) unsafe fn run(
     path: impl AsRef<Path>,
     f: unsafe extern "C" fn(
@@ -308,6 +316,13 @@ pub(crate) unsafe fn run(
     Ok(collect(out_array, out_count))
 }
 
+/// Convert a bridge-allocated pose array into Rust-owned observations.
+///
+/// # Safety
+///
+/// `out_array` must be either null or point to `out_count` consecutive
+/// `PoseObservationRaw` elements allocated by the Swift bridge. This
+/// function consumes that allocation and frees it exactly once.
 pub(crate) unsafe fn collect(
     out_array: *mut core::ffi::c_void,
     out_count: usize,

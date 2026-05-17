@@ -83,6 +83,7 @@ impl ObjectTracker {
         };
         let mut handle: *mut c_void = ptr::null_mut();
         let mut err: *mut c_char = ptr::null_mut();
+        // SAFETY: all pointer arguments are valid stack locations or bridge-owned handles; strings are valid C strings for the duration of the call.
         let status = unsafe {
             ffi::vn_object_tracker_create(
                 image_c.as_ptr(),
@@ -116,6 +117,7 @@ impl ObjectTracker {
             _pad: 0.0,
         };
         let mut err: *mut c_char = ptr::null_mut();
+        // SAFETY: all pointer arguments are valid stack locations or bridge-owned handles; strings are valid C strings for the duration of the call.
         let status = unsafe {
             ffi::vn_object_tracker_track(
                 self.handle,
@@ -152,6 +154,7 @@ impl RectangleTracker {
         let mut raw = rectangle_to_raw(rect_observation);
         let mut handle: *mut c_void = ptr::null_mut();
         let mut err: *mut c_char = ptr::null_mut();
+        // SAFETY: all pointer arguments are valid stack locations or bridge-owned handles; strings are valid C strings for the duration of the call.
         let status = unsafe {
             ffi::vn_rectangle_tracker_create(
                 image_c.as_ptr(),
@@ -195,6 +198,7 @@ impl RectangleTracker {
             br_y: 0.0,
         };
         let mut err: *mut c_char = ptr::null_mut();
+        // SAFETY: all pointer arguments are valid stack locations or bridge-owned handles; strings are valid C strings for the duration of the call.
         let status = unsafe {
             ffi::vn_rectangle_tracker_track(
                 self.handle,
@@ -234,6 +238,7 @@ impl OpticalFlowTracker {
         let mut handle: *mut c_void = ptr::null_mut();
         let mut err: *mut c_char = ptr::null_mut();
         let status =
+            // SAFETY: all pointer arguments are valid stack locations or null-initialised out-params; strings are valid C strings for the duration of the call.
             unsafe { ffi::vn_optical_flow_tracker_create(image_c.as_ptr(), &mut handle, &mut err) };
         if status != ffi::status::OK {
             return Err(error_from_status(status, err));
@@ -258,6 +263,7 @@ impl OpticalFlowTracker {
             bytes: ptr::null_mut(),
         };
         let mut err: *mut c_char = ptr::null_mut();
+        // SAFETY: all pointer arguments are valid stack locations or bridge-owned handles; strings are valid C strings for the duration of the call.
         let status = unsafe {
             ffi::vn_optical_flow_tracker_track(
                 self.handle,
@@ -270,6 +276,7 @@ impl OpticalFlowTracker {
             return Err(error_from_status(status, err));
         }
         let frame = copy_mask(&raw);
+        // SAFETY: `raw` was populated by the bridge and has not been freed yet; unique free site.
         unsafe { ffi::vn_segmentation_mask_free(ptr::addr_of_mut!(raw).cast()) };
         Ok(frame)
     }
@@ -287,6 +294,7 @@ impl TranslationalImageTracker {
         let image_c = path_to_cstring(reference_path.as_ref(), "reference path")?;
         let mut handle: *mut c_void = ptr::null_mut();
         let mut err: *mut c_char = ptr::null_mut();
+        // SAFETY: all pointer arguments are valid stack locations or null-initialised out-params; strings are valid C strings for the duration of the call.
         let status = unsafe {
             ffi::vn_translational_image_tracker_create(image_c.as_ptr(), &mut handle, &mut err)
         };
@@ -310,6 +318,7 @@ impl TranslationalImageTracker {
         let image_c = path_to_cstring(image_path.as_ref(), "image path")?;
         let mut raw = ffi::TranslationalAlignmentRaw { tx: 0.0, ty: 0.0 };
         let mut err: *mut c_char = ptr::null_mut();
+        // SAFETY: all pointer arguments are valid stack locations or bridge-owned handles; strings are valid C strings for the duration of the call.
         let status = unsafe {
             ffi::vn_translational_image_tracker_track(
                 self.handle,
@@ -340,6 +349,7 @@ impl HomographicImageTracker {
         let image_c = path_to_cstring(reference_path.as_ref(), "reference path")?;
         let mut handle: *mut c_void = ptr::null_mut();
         let mut err: *mut c_char = ptr::null_mut();
+        // SAFETY: all pointer arguments are valid stack locations or null-initialised out-params; strings are valid C strings for the duration of the call.
         let status = unsafe {
             ffi::vn_homographic_image_tracker_create(image_c.as_ptr(), &mut handle, &mut err)
         };
@@ -374,6 +384,7 @@ impl HomographicImageTracker {
             _pad: 0.0,
         };
         let mut err: *mut c_char = ptr::null_mut();
+        // SAFETY: all pointer arguments are valid stack locations or bridge-owned handles; strings are valid C strings for the duration of the call.
         let status = unsafe {
             ffi::vn_homographic_image_tracker_track(
                 self.handle,
@@ -400,6 +411,7 @@ macro_rules! impl_tracker_drop {
         impl Drop for $tracker {
             fn drop(&mut self) {
                 if !self.handle.is_null() {
+                    // SAFETY: `self.handle` is a live bridge-owned handle and this drop path releases it exactly once.
                     unsafe { $release(self.handle) };
                     self.handle = ptr::null_mut();
                 }
@@ -484,6 +496,7 @@ fn copy_mask(raw: &ffi::SegmentationMaskRaw) -> OpticalFlowFrame {
         };
     }
     let len = raw.height.saturating_mul(raw.bytes_per_row);
+    // SAFETY: `raw.bytes` is valid for `len` bytes as guaranteed by the Swift bridge.
     let bytes = unsafe { core::slice::from_raw_parts(raw.bytes.cast::<u8>(), len) }.to_vec();
     OpticalFlowFrame {
         width: raw.width,
@@ -504,6 +517,7 @@ fn ensure_handle(handle: *mut c_void, tracker_name: &str) -> Result<(), VisionEr
 }
 
 fn error_from_status(status: i32, err: *mut c_char) -> VisionError {
+    // SAFETY: the error pointer is either null or a bridge-allocated C string; `take_err` copies and frees it.
     let message = unsafe { take_err(err) };
     match status {
         ffi::status::IMAGE_LOAD_FAILED => VisionError::ImageLoadFailed(message),
@@ -513,11 +527,19 @@ fn error_from_status(status: i32, err: *mut c_char) -> VisionError {
     }
 }
 
+/// Extract an error string from a bridge-allocated C string and free it.
+///
+/// # Safety
+///
+/// `p` must be either null or a valid null-terminated C string heap-allocated
+/// (via `malloc`) by the Swift bridge. After this call `p` is invalid.
 unsafe fn take_err(p: *mut c_char) -> String {
     if p.is_null() {
         return String::new();
     }
+    // SAFETY: the C string pointer is non-null (checked above) and valid for the duration of this borrow.
     let s = unsafe { CStr::from_ptr(p) }.to_string_lossy().into_owned();
+    // SAFETY: `p` was malloc-allocated by the bridge and has not been freed yet.
     unsafe { libc::free(p.cast()) };
     s
 }

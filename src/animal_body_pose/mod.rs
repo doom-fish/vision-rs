@@ -122,6 +122,7 @@ pub fn detect_animal_body_pose(path: impl AsRef<Path>) -> Result<Vec<AnimalJoint
     let mut joints_ptr: *mut ffi::AnimalJointRaw = ptr::null_mut();
     let mut count: isize = 0;
     let mut err: *mut std::ffi::c_char = ptr::null_mut();
+    // SAFETY: `cpath` is a valid C string; all out-pointers are valid stack locations.
     let status = unsafe {
         ffi::vn_detect_animal_body_pose_in_path(
             cpath.as_ptr(),
@@ -131,15 +132,18 @@ pub fn detect_animal_body_pose(path: impl AsRef<Path>) -> Result<Vec<AnimalJoint
         )
     };
     if status != ffi::status::OK {
+        // SAFETY: `err` is either null or a malloc'd C string from the bridge.
         let msg = unsafe { take_err(err) };
         return Err(VisionError::RequestFailed(msg));
     }
     let mut out = Vec::with_capacity(count.max(0) as usize);
     for i in 0..count {
+        // SAFETY: `joints_ptr` is valid for `count` elements; `i` is in bounds.
         let j = unsafe { joints_ptr.offset(i).read() };
         let name = if j.name.is_null() {
             String::new()
         } else {
+            // SAFETY: `j.name` is a valid C string when non-null.
             unsafe { CStr::from_ptr(j.name) }
                 .to_string_lossy()
                 .into_owned()
@@ -152,16 +156,25 @@ pub fn detect_animal_body_pose(path: impl AsRef<Path>) -> Result<Vec<AnimalJoint
         });
     }
     if !joints_ptr.is_null() {
+        // SAFETY: `joints_ptr` and `count` are the bridge-allocated pair; unique free site.
         unsafe { ffi::vn_animal_joints_free(joints_ptr, count) };
     }
     Ok(out)
 }
 
+/// Extract an error string from a bridge-allocated C string and free it.
+///
+/// # Safety
+///
+/// `p` must be either null or a valid null-terminated C string heap-allocated
+/// (via `malloc`) by the Swift bridge. After this call `p` is invalid.
 unsafe fn take_err(p: *mut std::ffi::c_char) -> String {
     if p.is_null() {
         return String::new();
     }
+    // SAFETY: `p` is a valid C string per the function contract.
     let s = unsafe { CStr::from_ptr(p) }.to_string_lossy().into_owned();
+    // SAFETY: `p` was malloc-allocated by the bridge and is not yet freed.
     unsafe { libc::free(p.cast()) };
     s
 }

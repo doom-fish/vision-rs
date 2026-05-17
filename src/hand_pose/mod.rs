@@ -223,6 +223,7 @@ pub fn detect_human_hand_pose_in_path(
     let mut out_array: *mut core::ffi::c_void = ptr::null_mut();
     let mut out_count: usize = 0;
     let mut err_msg: *mut c_char = ptr::null_mut();
+    // SAFETY: all pointer arguments are valid stack locations or null-initialised out-params; strings are valid C strings for the duration of the call.
     let status = unsafe {
         ffi::vn_detect_human_hand_pose_in_path(
             path_c.as_ptr(),
@@ -233,8 +234,10 @@ pub fn detect_human_hand_pose_in_path(
         )
     };
     if status != ffi::status::OK {
+        // SAFETY: the error pointer is either null or a bridge-allocated C string; `from_swift` frees it.
         return Err(unsafe { from_swift(status, err_msg) });
     }
+    // SAFETY: the pointer/count pair comes directly from the bridge and `collect` consumes it exactly once.
     Ok(unsafe { collect(out_array, out_count) })
 }
 

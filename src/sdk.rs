@@ -400,5 +400,6 @@ extern "C" {
 /// Return the linked Vision framework version number.
 #[must_use]
 pub fn vision_version_number() -> f64 {
+    // SAFETY: `VNVisionVersionNumber` is a valid extern static provided by the Vision framework.
     unsafe { VNVisionVersionNumber }
 }

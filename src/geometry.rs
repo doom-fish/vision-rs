@@ -377,12 +377,14 @@ fn rect_from_raw(raw: CGRectRaw) -> NormalizedRect {
 /// Mirrors `VNNormalizedIdentityRect`.
 #[must_use]
 pub fn normalized_identity_rect() -> NormalizedRect {
+    // SAFETY: `VNNormalizedIdentityRect` is a valid extern static provided by the Vision framework.
     rect_from_raw(unsafe { VNNormalizedIdentityRect })
 }
 
 /// Mirrors `VNNormalizedRectIsIdentityRect`.
 #[must_use]
 pub fn normalized_rect_is_identity_rect(normalized_rect: NormalizedRect) -> bool {
+    // SAFETY: the arguments are plain value types passed by copy; the function is a pure math helper from the Vision framework.
     unsafe { VNNormalizedRectIsIdentityRect(rect_to_raw(normalized_rect)) }
 }
 
@@ -393,6 +395,7 @@ pub fn image_point_for_normalized_point(
     image_width: usize,
     image_height: usize,
 ) -> VisionPoint {
+    // SAFETY: the arguments are plain value types passed by copy; the function is a pure math helper from the Vision framework.
     point_from_raw(unsafe {
         VNImagePointForNormalizedPoint(point_to_raw(normalized_point), image_width, image_height)
     })
@@ -406,6 +409,7 @@ pub fn image_point_for_normalized_point_using_region_of_interest(
     image_height: usize,
     region_of_interest: NormalizedRect,
 ) -> VisionPoint {
+    // SAFETY: the arguments are plain value types passed by copy; the function is a pure math helper from the Vision framework.
     point_from_raw(unsafe {
         VNImagePointForNormalizedPointUsingRegionOfInterest(
             point_to_raw(normalized_point),
@@ -423,6 +427,7 @@ pub fn normalized_point_for_image_point(
     image_width: usize,
     image_height: usize,
 ) -> VisionPoint {
+    // SAFETY: the arguments are plain value types passed by copy; the function is a pure math helper from the Vision framework.
     point_from_raw(unsafe {
         VNNormalizedPointForImagePoint(point_to_raw(image_point), image_width, image_height)
     })
@@ -436,6 +441,7 @@ pub fn normalized_point_for_image_point_using_region_of_interest(
     image_height: usize,
     region_of_interest: NormalizedRect,
 ) -> VisionPoint {
+    // SAFETY: the arguments are plain value types passed by copy; the function is a pure math helper from the Vision framework.
     point_from_raw(unsafe {
         VNNormalizedPointForImagePointUsingRegionOfInterest(
             point_to_raw(image_point),
@@ -453,6 +459,7 @@ pub fn image_rect_for_normalized_rect(
     image_width: usize,
     image_height: usize,
 ) -> NormalizedRect {
+    // SAFETY: the arguments are plain value types passed by copy; the function is a pure math helper from the Vision framework.
     rect_from_raw(unsafe {
         VNImageRectForNormalizedRect(rect_to_raw(normalized_rect), image_width, image_height)
     })
@@ -466,6 +473,7 @@ pub fn image_rect_for_normalized_rect_using_region_of_interest(
     image_height: usize,
     region_of_interest: NormalizedRect,
 ) -> NormalizedRect {
+    // SAFETY: the arguments are plain value types passed by copy; the function is a pure math helper from the Vision framework.
     rect_from_raw(unsafe {
         VNImageRectForNormalizedRectUsingRegionOfInterest(
             rect_to_raw(normalized_rect),
@@ -483,6 +491,7 @@ pub fn normalized_rect_for_image_rect(
     image_width: usize,
     image_height: usize,
 ) -> NormalizedRect {
+    // SAFETY: the arguments are plain value types passed by copy; the function is a pure math helper from the Vision framework.
     rect_from_raw(unsafe {
         VNNormalizedRectForImageRect(rect_to_raw(image_rect), image_width, image_height)
     })
@@ -496,6 +505,7 @@ pub fn normalized_rect_for_image_rect_using_region_of_interest(
     image_height: usize,
     region_of_interest: NormalizedRect,
 ) -> NormalizedRect {
+    // SAFETY: the arguments are plain value types passed by copy; the function is a pure math helper from the Vision framework.
     rect_from_raw(unsafe {
         VNNormalizedRectForImageRectUsingRegionOfInterest(
             rect_to_raw(image_rect),
@@ -514,6 +524,7 @@ pub fn normalized_face_bounding_box_point_for_landmark_point(
     image_width: usize,
     image_height: usize,
 ) -> VisionPoint {
+    // SAFETY: the arguments are plain value types passed by copy; the function is a pure math helper from the Vision framework.
     point_from_raw(unsafe {
         VNNormalizedFaceBoundingBoxPointForLandmarkPoint(
             VectorFloat2Raw {
@@ -535,6 +546,7 @@ pub fn image_point_for_face_landmark_point(
     image_width: usize,
     image_height: usize,
 ) -> VisionPoint {
+    // SAFETY: the arguments are plain value types passed by copy; the function is a pure math helper from the Vision framework.
     point_from_raw(unsafe {
         VNImagePointForFaceLandmarkPoint(
             VectorFloat2Raw {
@@ -551,6 +563,7 @@ pub fn image_point_for_face_landmark_point(
 /// Mirrors `VNElementTypeSize`.
 #[must_use]
 pub fn element_type_size(element_type: ElementType) -> usize {
+    // SAFETY: the arguments are plain value types passed by copy; the function is a pure math helper from the Vision framework.
     unsafe { VNElementTypeSize(element_type.as_raw()) }
 }
 

@@ -78,6 +78,7 @@ pub fn detect_contours_observation_in_path(
     let mut out_array: *mut core::ffi::c_void = ptr::null_mut();
     let mut out_count: usize = 0;
     let mut err_msg: *mut c_char = ptr::null_mut();
+    // SAFETY: all pointer arguments are valid stack locations or bridge-owned handles; strings are valid C strings for the duration of the call.
     let status = unsafe {
         ffi::vn_detect_contours_in_path(
             path_c.as_ptr(),
@@ -89,6 +90,7 @@ pub fn detect_contours_observation_in_path(
         )
     };
     if status != ffi::status::OK {
+        // SAFETY: the error pointer is either null or a bridge-allocated C string; `from_swift` frees it.
         return Err(unsafe { from_swift(status, err_msg) });
     }
     if out_array.is_null() || out_count == 0 {
@@ -101,10 +103,13 @@ pub fn detect_contours_observation_in_path(
     let typed = out_array.cast::<ffi::ContourRaw>();
     let mut v = Vec::with_capacity(out_count);
     for i in 0..out_count {
+        // SAFETY: the pointer is valid for the reported element count; the index is in bounds.
         let raw = unsafe { &*typed.add(i) };
         let mut pts = Vec::with_capacity(raw.point_count);
         for k in 0..raw.point_count {
+            // SAFETY: the point buffer is valid for the reported coordinates; this index is in bounds.
             let x = unsafe { *raw.point_xs.add(k) };
+            // SAFETY: the point buffer is valid for the reported coordinates; this index is in bounds.
             let y = unsafe { *raw.point_ys.add(k) };
             pts.push(LandmarkPoint { x, y });
         }
@@ -114,6 +119,7 @@ pub fn detect_contours_observation_in_path(
             aspect_ratio: raw.aspect_ratio,
         });
     }
+    // SAFETY: the pointer/count pair was allocated by the bridge and is freed exactly once here.
     unsafe { ffi::vn_contours_free(out_array, out_count) };
     let contour_count = v
         .iter()

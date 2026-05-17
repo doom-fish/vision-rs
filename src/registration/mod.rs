@@ -51,10 +51,12 @@ pub fn register_translational(
         .map_err(|e| VisionError::InvalidArgument(format!("floating path NUL byte: {e}")))?;
     let mut out = ffi::TranslationalAlignmentRaw { tx: 0.0, ty: 0.0 };
     let mut err: *mut std::ffi::c_char = ptr::null_mut();
+    // SAFETY: `tp`, `fp` are valid C strings; `out` and `err` are valid out-params.
     let status = unsafe {
         ffi::vn_register_translational_in_paths(tp.as_ptr(), fp.as_ptr(), &mut out, &mut err)
     };
     if status != ffi::status::OK {
+        // SAFETY: `err` is either null or a malloc'd C string from the bridge.
         let msg = unsafe { take_err(err) };
         return Err(VisionError::RequestFailed(msg));
     }
@@ -114,10 +116,12 @@ pub fn register_homographic(
         _pad: 0.0,
     };
     let mut err: *mut std::ffi::c_char = ptr::null_mut();
+    // SAFETY: `tp`, `fp` are valid C strings; `out` and `err` are valid out-params.
     let status = unsafe {
         ffi::vn_register_homographic_in_paths(tp.as_ptr(), fp.as_ptr(), &mut out, &mut err)
     };
     if status != ffi::status::OK {
+        // SAFETY: `err` is either null or a malloc'd C string from the bridge.
         let msg = unsafe { take_err(err) };
         return Err(VisionError::RequestFailed(msg));
     }
@@ -144,11 +148,19 @@ pub fn register_homographic_observation(
     register_homographic(target, floating).map(ImageAlignmentObservation::homographic)
 }
 
+/// Extract an error string from a bridge-allocated C string and free it.
+///
+/// # Safety
+///
+/// `p` must be either null or a valid null-terminated C string heap-allocated
+/// (via `malloc`) by the Swift bridge. After this call `p` is invalid.
 unsafe fn take_err(p: *mut std::ffi::c_char) -> String {
     if p.is_null() {
         return String::new();
     }
+    // SAFETY: `p` is a valid C string per the function contract.
     let s = unsafe { CStr::from_ptr(p) }.to_string_lossy().into_owned();
+    // SAFETY: `p` was malloc-allocated by the bridge and is not yet freed.
     unsafe { libc::free(p.cast()) };
     s
 }

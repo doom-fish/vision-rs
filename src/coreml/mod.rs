@@ -157,6 +157,7 @@ impl CoreMLRequest {
         let mut out_array = ptr::null_mut();
         let mut out_count = 0;
         let mut err_msg: *mut c_char = ptr::null_mut();
+        // SAFETY: all pointer arguments are valid stack locations or bridge-owned handles; strings are valid C strings for the duration of the call.
         let status = unsafe {
             ffi::vn_coreml_request_classify_in_path(
                 image_c.as_ptr(),
@@ -181,6 +182,7 @@ impl CoreMLRequest {
             )
         };
         if status != ffi::status::OK {
+            // SAFETY: the error pointer is either null or a bridge-allocated C string; `from_swift` frees it.
             return Err(unsafe { from_swift(status, err_msg) });
         }
         Ok(collect_classifications(out_array, out_count))
@@ -225,6 +227,7 @@ impl CoreMLRequest {
         };
         let mut has_value = false;
         let mut err_msg: *mut c_char = ptr::null_mut();
+        // SAFETY: all pointer arguments are valid stack locations or bridge-owned handles; strings are valid C strings for the duration of the call.
         let status = unsafe {
             ffi::vn_coreml_feature_value_in_path(
                 image_c.as_ptr(),
@@ -249,6 +252,7 @@ impl CoreMLRequest {
             )
         };
         if status != ffi::status::OK {
+            // SAFETY: the error pointer is either null or a bridge-allocated C string; `from_swift` frees it.
             return Err(unsafe { from_swift(status, err_msg) });
         }
         if !has_value {
@@ -267,6 +271,7 @@ impl CoreMLRequest {
                         if raw.multi_array_shape.is_null() || raw.multi_array_shape_count == 0 {
                             Vec::new()
                         } else {
+                            // SAFETY: the pointer is valid for the reported element count as guaranteed by the bridge.
                             unsafe {
                                 std::slice::from_raw_parts(
                                     raw.multi_array_shape,
@@ -279,6 +284,7 @@ impl CoreMLRequest {
                         if raw.multi_array_values.is_null() || raw.multi_array_value_count == 0 {
                             Vec::new()
                         } else {
+                            // SAFETY: the pointer is valid for the reported element count as guaranteed by the bridge.
                             unsafe {
                                 std::slice::from_raw_parts(
                                     raw.multi_array_values,
@@ -295,6 +301,7 @@ impl CoreMLRequest {
                 },
             },
         };
+        // SAFETY: `raw` was populated by the bridge and has not been freed yet; unique free site.
         unsafe { ffi::vn_coreml_feature_value_free(&mut raw) };
         Ok(Some(observation))
     }
@@ -334,12 +341,14 @@ fn collect_classifications(
     let typed = out_array.cast::<ffi::ClassificationRaw>();
     let mut values = Vec::with_capacity(out_count);
     for index in 0..out_count {
+        // SAFETY: the pointer is valid for the reported element count; the index is in bounds.
         let raw = unsafe { &*typed.add(index) };
         values.push(Classification {
             identifier: string_from_ptr(raw.identifier).unwrap_or_default(),
             confidence: raw.confidence,
         });
     }
+    // SAFETY: the pointer/count pair was allocated by the bridge and is freed exactly once here.
     unsafe { ffi::vn_classifications_free(out_array, out_count) };
     values
 }
@@ -354,6 +363,7 @@ fn path_to_cstring(path: &Path, label: &str) -> Result<CString, VisionError> {
 
 fn string_from_ptr(ptr: *mut c_char) -> Option<String> {
     (!ptr.is_null()).then(|| {
+        // SAFETY: the C string pointer is non-null (checked above) and valid for the duration of this borrow.
         unsafe { CStr::from_ptr(ptr) }
             .to_string_lossy()
             .into_owned()

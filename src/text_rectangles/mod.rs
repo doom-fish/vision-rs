@@ -104,6 +104,7 @@ impl TextRectanglesRequest {
         let mut count: usize = 0;
         let mut err = ptr::null_mut();
         let roi = self.image_based.region_of_interest();
+        // SAFETY: all pointer arguments are valid stack locations or bridge-owned handles; strings are valid C strings for the duration of the call.
         let status = unsafe {
             ffi::vn_detect_text_observations_in_path(
                 cpath.as_ptr(),
@@ -123,6 +124,7 @@ impl TextRectanglesRequest {
             )
         };
         if status != ffi::status::OK {
+            // SAFETY: the error pointer is either null or a bridge-allocated C string; `from_swift` frees it.
             return Err(unsafe { from_swift(status, err) });
         }
         if observations_ptr.is_null() || count == 0 {
@@ -130,9 +132,11 @@ impl TextRectanglesRequest {
         }
         let mut out = Vec::with_capacity(count);
         for index in 0..count {
+            // SAFETY: the pointer is valid for the reported element count; the index is in bounds.
             let raw = unsafe { &*observations_ptr.add(index) };
             let mut character_boxes = Vec::with_capacity(raw.character_box_count);
             for char_index in 0..raw.character_box_count {
+                // SAFETY: the pointer is valid for the reported element count; the index is in bounds.
                 let character_box = unsafe { &*raw.character_boxes.add(char_index) };
                 character_boxes.push(NormalizedRect::new(
                     character_box.x,
@@ -147,6 +151,7 @@ impl TextRectanglesRequest {
                 character_boxes,
             });
         }
+        // SAFETY: the pointer/count pair was allocated by the bridge and is freed exactly once here.
         unsafe { ffi::vn_text_observations_free(observations_ptr.cast(), count) };
         Ok(out)
     }

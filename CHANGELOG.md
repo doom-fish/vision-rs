@@ -2,6 +2,24 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.16.2] - 2026-06-16
+
+### Fixed
+
+- **Panic safety (UB fix)**: All four `extern "C"` async callbacks (`text_result_cb`,
+  `face_result_cb`, `barcode_result_cb`, `seg_result_cb`) in `async_api` were missing
+  panic guards. A Rust panic unwinding through the Swift/C ABI boundary is undefined
+  behaviour. Each callback is now wrapped in `std::panic::catch_unwind`; on panic the
+  corresponding `AsyncCompletion` future is resolved with an error rather than left
+  permanently pending.
+- **SAFETY comments**: Added `// SAFETY:` comments to every `unsafe { … }` block and
+  `# Safety` doc sections to every `unsafe fn` across the entire crate.
+- **`unsafe impl Send/Sync for PersonInstanceMask`**: Added SAFETY rationale explaining
+  the type owns its buffer exclusively and shared references are read-only.
+- **Cargo.toml**: Updated `apple-cf` to `>=0.7, <0.9` with a local `path` dep so
+  Cargo resolves it from the monorepo and avoids a `multiple_crate_versions` lint
+  violation from the transitive registry dep.
+
 ## [0.16.1] - 2026-06-16
 
 ### Fixed

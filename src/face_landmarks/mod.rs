@@ -265,13 +265,21 @@ impl FaceWithLandmarks {
     }
 }
 
+/// Copy a bridge-allocated landmark buffer into Rust-owned points.
+///
+/// # Safety
+///
+/// `ptr` must be either null or valid for `n * 2` consecutive `f64` values
+/// arranged as `(x, y)` pairs for the duration of this call.
 unsafe fn copy_region(ptr: *mut f64, n: usize) -> Vec<LandmarkPoint> {
     if ptr.is_null() || n == 0 {
         return Vec::new();
     }
     let mut v = Vec::with_capacity(n);
     for i in 0..n {
+        // SAFETY: the point buffer is valid for the reported coordinates; this index is in bounds.
         let x = unsafe { *ptr.add(i * 2) };
+        // SAFETY: the point buffer is valid for the reported coordinates; this index is in bounds.
         let y = unsafe { *ptr.add(i * 2 + 1) };
         v.push(LandmarkPoint { x, y });
     }
@@ -314,6 +322,7 @@ pub fn detect_face_landmarks_in_path(
     let mut out_count: usize = 0;
     let mut err_msg: *mut c_char = ptr::null_mut();
 
+    // SAFETY: all pointer arguments are valid stack locations or null-initialised out-params; strings are valid C strings for the duration of the call.
     let status = unsafe {
         ffi::vn_detect_face_landmarks_in_path(
             path_c.as_ptr(),
@@ -323,6 +332,7 @@ pub fn detect_face_landmarks_in_path(
         )
     };
     if status != ffi::status::OK {
+        // SAFETY: the error pointer is either null or a bridge-allocated C string; `from_swift` frees it.
         return Err(unsafe { from_swift(status, err_msg) });
     }
     if out_array.is_null() || out_count == 0 {
@@ -331,6 +341,7 @@ pub fn detect_face_landmarks_in_path(
     let typed = out_array.cast::<ffi::FaceLandmarksRaw>();
     let mut faces = Vec::with_capacity(out_count);
     for i in 0..out_count {
+        // SAFETY: the pointer is valid for the reported element count; the index is in bounds.
         let raw = unsafe { &*typed.add(i) };
         faces.push(FaceWithLandmarks {
             bounding_box: BoundingBox {
@@ -355,20 +366,33 @@ pub fn detect_face_landmarks_in_path(
             } else {
                 Some(raw.pitch)
             },
+            // SAFETY: the region pointer/count pair comes from the current bridge row and is valid for the reported length.
             face_contour: unsafe { copy_region(raw.face_contour, raw.face_contour_count) },
+            // SAFETY: the region pointer/count pair comes from the current bridge row and is valid for the reported length.
             left_eye: unsafe { copy_region(raw.left_eye, raw.left_eye_count) },
+            // SAFETY: the region pointer/count pair comes from the current bridge row and is valid for the reported length.
             right_eye: unsafe { copy_region(raw.right_eye, raw.right_eye_count) },
+            // SAFETY: the region pointer/count pair comes from the current bridge row and is valid for the reported length.
             left_eyebrow: unsafe { copy_region(raw.left_eyebrow, raw.left_eyebrow_count) },
+            // SAFETY: the region pointer/count pair comes from the current bridge row and is valid for the reported length.
             right_eyebrow: unsafe { copy_region(raw.right_eyebrow, raw.right_eyebrow_count) },
+            // SAFETY: the region pointer/count pair comes from the current bridge row and is valid for the reported length.
             nose: unsafe { copy_region(raw.nose, raw.nose_count) },
+            // SAFETY: the region pointer/count pair comes from the current bridge row and is valid for the reported length.
             nose_crest: unsafe { copy_region(raw.nose_crest, raw.nose_crest_count) },
+            // SAFETY: the region pointer/count pair comes from the current bridge row and is valid for the reported length.
             median_line: unsafe { copy_region(raw.median_line, raw.median_line_count) },
+            // SAFETY: the region pointer/count pair comes from the current bridge row and is valid for the reported length.
             outer_lips: unsafe { copy_region(raw.outer_lips, raw.outer_lips_count) },
+            // SAFETY: the region pointer/count pair comes from the current bridge row and is valid for the reported length.
             inner_lips: unsafe { copy_region(raw.inner_lips, raw.inner_lips_count) },
+            // SAFETY: the region pointer/count pair comes from the current bridge row and is valid for the reported length.
             left_pupil: unsafe { copy_region(raw.left_pupil, raw.left_pupil_count) },
+            // SAFETY: the region pointer/count pair comes from the current bridge row and is valid for the reported length.
             right_pupil: unsafe { copy_region(raw.right_pupil, raw.right_pupil_count) },
         });
     }
+    // SAFETY: the pointer/count pair was allocated by the bridge and is freed exactly once here.
     unsafe { ffi::vn_face_landmarks_free(out_array, out_count) };
     Ok(faces)
 }

@@ -61,6 +61,7 @@ pub fn generate_optical_flow_in_paths(
     };
     let mut has_value = false;
     let mut err_msg: *mut c_char = ptr::null_mut();
+    // SAFETY: all pointer arguments are valid stack locations or bridge-owned handles; strings are valid C strings for the duration of the call.
     let status = unsafe {
         ffi::vn_generate_optical_flow_in_paths(
             a_c.as_ptr(),
@@ -72,14 +73,17 @@ pub fn generate_optical_flow_in_paths(
         )
     };
     if status != ffi::status::OK {
+        // SAFETY: the error pointer is either null or a bridge-allocated C string; `from_swift` frees it.
         return Err(unsafe { from_swift(status, err_msg) });
     }
     if !has_value || raw.bytes.is_null() {
         return Ok(None);
     }
     let len = raw.height.saturating_mul(raw.bytes_per_row);
+    // SAFETY: `raw.bytes` is valid for `len` bytes as guaranteed by the Swift bridge.
     let slice = unsafe { core::slice::from_raw_parts(raw.bytes.cast::<u8>(), len) };
     let bytes = slice.to_vec();
+    // SAFETY: `raw` was populated by the bridge and has not been freed yet; unique free site.
     unsafe { ffi::vn_segmentation_mask_free(&mut raw) };
     Ok(Some(SegmentationMask {
         width: raw.width,

@@ -162,6 +162,7 @@ impl TextRecognizer {
         let mut out_array: *mut core::ffi::c_void = ptr::null_mut();
         let mut out_count: usize = 0;
         let mut err_msg: *mut c_char = ptr::null_mut();
+        // SAFETY: all pointer arguments are valid stack locations or bridge-owned handles; strings are valid C strings for the duration of the call.
         let status = unsafe {
             ffi::vn_recognize_text_in_path(
                 path_c.as_ptr(),
@@ -173,6 +174,7 @@ impl TextRecognizer {
             )
         };
         if status != ffi::status::OK {
+            // SAFETY: the error pointer is either null or a bridge-allocated C string; `from_swift` frees it.
             return Err(unsafe { from_swift(status, err_msg) });
         }
 
@@ -184,10 +186,12 @@ impl TextRecognizer {
         let typed_array = out_array.cast::<ffi::RecognizedTextRaw>();
         let mut results = Vec::with_capacity(out_count);
         for i in 0..out_count {
+            // SAFETY: the pointer is valid for the reported element count; the index is in bounds.
             let raw = unsafe { &*typed_array.add(i) };
             let text = if raw.text.is_null() {
                 String::new()
             } else {
+                // SAFETY: the C string pointer is non-null (checked above) and valid for the duration of this borrow.
                 unsafe { core::ffi::CStr::from_ptr(raw.text) }
                     .to_string_lossy()
                     .into_owned()
@@ -204,6 +208,7 @@ impl TextRecognizer {
             });
         }
 
+        // SAFETY: the pointer/count pair was allocated by the bridge and is freed exactly once here.
         unsafe { ffi::vn_recognized_text_free(out_array, out_count) };
         Ok(results)
     }
@@ -224,6 +229,7 @@ impl TextRecognizer {
         let mut out_array: *mut core::ffi::c_void = ptr::null_mut();
         let mut out_count: usize = 0;
         let mut err_msg: *mut c_char = ptr::null_mut();
+        // SAFETY: all pointer arguments are valid stack locations or bridge-owned handles; strings are valid C strings for the duration of the call.
         let status = unsafe {
             ffi::vn_recognize_text_in_pixel_buffer(
                 pixel_buffer.as_ptr(),
@@ -235,6 +241,7 @@ impl TextRecognizer {
             )
         };
         if status != ffi::status::OK {
+            // SAFETY: the error pointer is either null or a bridge-allocated C string; `from_swift` frees it.
             return Err(unsafe { from_swift(status, err_msg) });
         }
         if out_array.is_null() || out_count == 0 {
@@ -244,10 +251,12 @@ impl TextRecognizer {
         let typed_array = out_array.cast::<ffi::RecognizedTextRaw>();
         let mut results = Vec::with_capacity(out_count);
         for i in 0..out_count {
+            // SAFETY: the pointer is valid for the reported element count; the index is in bounds.
             let raw = unsafe { &*typed_array.add(i) };
             let text = if raw.text.is_null() {
                 String::new()
             } else {
+                // SAFETY: the C string pointer is non-null (checked above) and valid for the duration of this borrow.
                 unsafe { core::ffi::CStr::from_ptr(raw.text) }
                     .to_string_lossy()
                     .into_owned()
@@ -264,6 +273,7 @@ impl TextRecognizer {
             });
         }
 
+        // SAFETY: the pointer/count pair was allocated by the bridge and is freed exactly once here.
         unsafe { ffi::vn_recognized_text_free(out_array, out_count) };
         Ok(results)
     }
@@ -281,6 +291,7 @@ pub fn _test_helper_render_text_png(
     let text_c = CString::new(text).map_err(|e| VisionError::InvalidArgument(e.to_string()))?;
     let path_c = CString::new(path.to_string_lossy().as_ref())
         .map_err(|e| VisionError::InvalidArgument(e.to_string()))?;
+    // SAFETY: all pointer arguments are valid stack locations or bridge-owned handles; strings are valid C strings for the duration of the call.
     let status = unsafe {
         ffi::vn_test_helper_render_text_png(text_c.as_ptr(), width, height, path_c.as_ptr())
     };

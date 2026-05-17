@@ -279,6 +279,7 @@ pub fn detect_human_body_recognized_points_3d(
     let mut joints_ptr: *mut ffi::HumanJoint3DRaw = ptr::null_mut();
     let mut count: isize = 0;
     let mut err: *mut std::ffi::c_char = ptr::null_mut();
+    // SAFETY: all pointer arguments are valid stack locations or null-initialised out-params; strings are valid C strings for the duration of the call.
     let status = unsafe {
         ffi::vn_detect_human_body_pose_3d_in_path(
             cpath.as_ptr(),
@@ -288,12 +289,14 @@ pub fn detect_human_body_recognized_points_3d(
         )
     };
     if status != ffi::status::OK {
+        // SAFETY: the error pointer is either null or a bridge-allocated C string; `take_err` copies and frees it.
         let msg = unsafe { take_err(err) };
         return Err(VisionError::RequestFailed(msg));
     }
 
     let mut out = Vec::with_capacity(count.max(0) as usize);
     for index in 0..count {
+        // SAFETY: the pointer is valid for the reported element count; the index is in bounds.
         let row = unsafe { &*joints_ptr.offset(index) };
         let identifier = copy_string(row.name);
         let parent_joint = copy_optional_string(row.parent_joint);
@@ -309,6 +312,7 @@ pub fn detect_human_body_recognized_points_3d(
         ));
     }
     if !joints_ptr.is_null() {
+        // SAFETY: the pointer/count pair was allocated by the bridge and is freed exactly once here.
         unsafe { ffi::vn_human_joints_3d_free(joints_ptr, count) };
     }
     Ok(out)
@@ -337,6 +341,7 @@ fn copy_string(pointer: *mut std::ffi::c_char) -> String {
     if pointer.is_null() {
         String::new()
     } else {
+        // SAFETY: the C string pointer is non-null (checked above) and valid for the duration of this borrow.
         unsafe { CStr::from_ptr(pointer) }
             .to_string_lossy()
             .into_owned()
@@ -347,6 +352,7 @@ fn copy_optional_string(pointer: *mut std::ffi::c_char) -> Option<String> {
     if pointer.is_null() {
         None
     } else {
+        // SAFETY: the C string pointer is non-null (checked above) and valid for the duration of this borrow.
         let value = unsafe { CStr::from_ptr(pointer) }
             .to_string_lossy()
             .into_owned();
@@ -358,11 +364,19 @@ fn copy_optional_string(pointer: *mut std::ffi::c_char) -> Option<String> {
     }
 }
 
+/// Extract an error string from a bridge-allocated C string and free it.
+///
+/// # Safety
+///
+/// `p` must be either null or a valid null-terminated C string heap-allocated
+/// (via `malloc`) by the Swift bridge. After this call `p` is invalid.
 unsafe fn take_err(p: *mut std::ffi::c_char) -> String {
     if p.is_null() {
         return String::new();
     }
+    // SAFETY: the C string pointer is non-null (checked above) and valid for the duration of this borrow.
     let s = unsafe { CStr::from_ptr(p) }.to_string_lossy().into_owned();
+    // SAFETY: `p` was malloc-allocated by the bridge and has not been freed yet.
     unsafe { libc::free(p.cast()) };
     s
 }

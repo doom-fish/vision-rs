@@ -41,6 +41,7 @@ pub fn detect_human_rectangles_in_path(
     let mut out_count: usize = 0;
     let mut err_msg: *mut c_char = ptr::null_mut();
 
+    // SAFETY: all pointer arguments are valid stack locations or null-initialised out-params; strings are valid C strings for the duration of the call.
     let status = unsafe {
         ffi::vn_detect_human_rectangles_in_path(
             path_c.as_ptr(),
@@ -51,6 +52,7 @@ pub fn detect_human_rectangles_in_path(
         )
     };
     if status != ffi::status::OK {
+        // SAFETY: the error pointer is either null or a bridge-allocated C string; `from_swift` frees it.
         return Err(unsafe { from_swift(status, err_msg) });
     }
     if out_array.is_null() || out_count == 0 {
@@ -59,6 +61,7 @@ pub fn detect_human_rectangles_in_path(
     let typed = out_array.cast::<ffi::HumanObservationRaw>();
     let mut v = Vec::with_capacity(out_count);
     for i in 0..out_count {
+        // SAFETY: the pointer is valid for the reported element count; the index is in bounds.
         let r = unsafe { &*typed.add(i) };
         v.push(DetectedHuman {
             bounding_box: BoundingBox {
@@ -71,6 +74,7 @@ pub fn detect_human_rectangles_in_path(
             upper_body_only: r.upper_body_only,
         });
     }
+    // SAFETY: the pointer/count pair was allocated by the bridge and is freed exactly once here.
     unsafe { ffi::vn_human_observations_free(out_array, out_count) };
     Ok(v)
 }

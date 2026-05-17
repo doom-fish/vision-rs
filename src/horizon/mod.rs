@@ -75,10 +75,12 @@ pub fn detect_horizon_observation_in_path(
     let mut has_value: bool = false;
     let mut err_msg: *mut c_char = ptr::null_mut();
 
+    // SAFETY: all pointer arguments are valid stack locations or null-initialised out-params; strings are valid C strings for the duration of the call.
     let status = unsafe {
         ffi::vn_detect_horizon_in_path(path_c.as_ptr(), &mut angle, &mut has_value, &mut err_msg)
     };
     if status != ffi::status::OK {
+        // SAFETY: the error pointer is either null or a bridge-allocated C string; `from_swift` frees it.
         return Err(unsafe { from_swift(status, err_msg) });
     }
     Ok(has_value.then_some(HorizonObservation::new(angle)))

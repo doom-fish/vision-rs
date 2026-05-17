@@ -48,6 +48,7 @@ impl FaceDetector {
         let mut out_array: *mut core::ffi::c_void = ptr::null_mut();
         let mut out_count: usize = 0;
         let mut err_msg: *mut c_char = ptr::null_mut();
+        // SAFETY: all pointer arguments are valid stack locations or null-initialised out-params; strings are valid C strings for the duration of the call.
         let status = unsafe {
             ffi::vn_detect_faces_in_path(
                 path_c.as_ptr(),
@@ -57,6 +58,7 @@ impl FaceDetector {
             )
         };
         if status != ffi::status::OK {
+            // SAFETY: the error pointer is either null or a bridge-allocated C string; `from_swift` frees it.
             return Err(unsafe { from_swift(status, err_msg) });
         }
         Self::collect(out_array, out_count)
@@ -74,6 +76,7 @@ impl FaceDetector {
         let mut out_array: *mut core::ffi::c_void = ptr::null_mut();
         let mut out_count: usize = 0;
         let mut err_msg: *mut c_char = ptr::null_mut();
+        // SAFETY: all pointer arguments are valid stack locations or bridge-owned handles; strings are valid C strings for the duration of the call.
         let status = unsafe {
             ffi::vn_detect_faces_in_pixel_buffer(
                 pixel_buffer.as_ptr(),
@@ -83,6 +86,7 @@ impl FaceDetector {
             )
         };
         if status != ffi::status::OK {
+            // SAFETY: the error pointer is either null or a bridge-allocated C string; `from_swift` frees it.
             return Err(unsafe { from_swift(status, err_msg) });
         }
         Self::collect(out_array, out_count)
@@ -99,6 +103,7 @@ impl FaceDetector {
         let typed_array = out_array.cast::<ffi::DetectedFaceRaw>();
         let mut results = Vec::with_capacity(out_count);
         for i in 0..out_count {
+            // SAFETY: the pointer is valid for the reported element count; the index is in bounds.
             let raw = unsafe { &*typed_array.add(i) };
             let nan_to_none = |v: f32| if v.is_nan() { None } else { Some(v) };
             results.push(DetectedFace {
@@ -114,6 +119,7 @@ impl FaceDetector {
                 pitch: nan_to_none(raw.pitch),
             });
         }
+        // SAFETY: the pointer/count pair was allocated by the bridge and is freed exactly once here.
         unsafe { ffi::vn_detected_faces_free(out_array, out_count) };
         Ok(results)
     }

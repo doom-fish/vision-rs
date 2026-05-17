@@ -63,6 +63,7 @@ pub fn detect_rectangles_in_path(
     let mut out_count: usize = 0;
     let mut err_msg: *mut c_char = ptr::null_mut();
 
+    // SAFETY: all pointer arguments are valid stack locations or bridge-owned handles; strings are valid C strings for the duration of the call.
     let status = unsafe {
         ffi::vn_detect_rectangles_in_path(
             path_c.as_ptr(),
@@ -77,8 +78,10 @@ pub fn detect_rectangles_in_path(
         )
     };
     if status != ffi::status::OK {
+        // SAFETY: the error pointer is either null or a bridge-allocated C string; `from_swift` frees it.
         return Err(unsafe { from_swift(status, err_msg) });
     }
+    // SAFETY: the pointer/count pair comes directly from the bridge and `collect_rects` consumes it exactly once.
     Ok(unsafe { collect_rects(out_array, out_count) })
 }
 
@@ -102,6 +105,7 @@ pub fn detect_document_segmentation_in_path(
     let mut out_count: usize = 0;
     let mut err_msg: *mut c_char = ptr::null_mut();
 
+    // SAFETY: all pointer arguments are valid stack locations or null-initialised out-params; strings are valid C strings for the duration of the call.
     let status = unsafe {
         ffi::vn_detect_document_segmentation_in_path(
             path_c.as_ptr(),
@@ -111,11 +115,20 @@ pub fn detect_document_segmentation_in_path(
         )
     };
     if status != ffi::status::OK {
+        // SAFETY: the error pointer is either null or a bridge-allocated C string; `from_swift` frees it.
         return Err(unsafe { from_swift(status, err_msg) });
     }
+    // SAFETY: the pointer/count pair comes directly from the bridge and `collect_rects` consumes it exactly once.
     Ok(unsafe { collect_rects(out_array, out_count) })
 }
 
+/// Convert a bridge-allocated rectangle array into Rust-owned observations.
+///
+/// # Safety
+///
+/// `out_array` must be either null or point to `out_count` consecutive
+/// `RectangleObservationRaw` elements allocated by the Swift bridge.
+/// This function consumes that allocation and frees it exactly once.
 unsafe fn collect_rects(
     out_array: *mut core::ffi::c_void,
     out_count: usize,
@@ -126,6 +139,7 @@ unsafe fn collect_rects(
     let typed = out_array.cast::<ffi::RectangleObservationRaw>();
     let mut v = Vec::with_capacity(out_count);
     for i in 0..out_count {
+        // SAFETY: the pointer is valid for the reported element count; the index is in bounds.
         let r = unsafe { &*typed.add(i) };
         v.push(RectangleObservation {
             bounding_box: BoundingBox {
@@ -153,6 +167,7 @@ unsafe fn collect_rects(
             },
         });
     }
+    // SAFETY: the pointer/count pair was allocated by the bridge and is freed exactly once here.
     unsafe { ffi::vn_rectangle_observations_free(out_array, out_count) };
     v
 }

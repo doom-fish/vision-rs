@@ -111,10 +111,12 @@ pub fn generate_image_feature_print_in_path(
         bytes: ptr::null_mut(),
     };
     let mut err_msg: *mut c_char = ptr::null_mut();
+    // SAFETY: all pointer arguments are valid stack locations or null-initialised out-params; strings are valid C strings for the duration of the call.
     let status = unsafe {
         ffi::vn_generate_image_feature_print_in_path(path_c.as_ptr(), &mut raw, &mut err_msg)
     };
     if status != ffi::status::OK {
+        // SAFETY: the error pointer is either null or a bridge-allocated C string; `from_swift` frees it.
         return Err(unsafe { from_swift(status, err_msg) });
     }
     if raw.bytes.is_null() || raw.element_count == 0 {
@@ -126,8 +128,10 @@ pub fn generate_image_feature_print_in_path(
         _ => 0_usize,
     };
     let len = raw.element_count.saturating_mul(bytes_per_elem);
+    // SAFETY: `raw.bytes` is valid for `len` bytes as guaranteed by the Swift bridge.
     let slice = unsafe { core::slice::from_raw_parts(raw.bytes.cast::<u8>(), len) };
     let data = slice.to_vec();
+    // SAFETY: `raw` was populated by the bridge and has not been freed yet; unique free site.
     unsafe { ffi::vn_feature_print_free(&mut raw) };
 
     Ok(Some(FeaturePrint {

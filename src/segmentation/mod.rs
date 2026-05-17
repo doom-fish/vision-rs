@@ -110,6 +110,7 @@ pub fn generate_person_segmentation_in_path(
     };
     let mut has_value = false;
     let mut err_msg: *mut c_char = ptr::null_mut();
+    // SAFETY: all pointer arguments are valid stack locations or bridge-owned handles; strings are valid C strings for the duration of the call.
     let status = unsafe {
         ffi::vn_generate_person_segmentation_in_path(
             path_c.as_ptr(),
@@ -120,6 +121,7 @@ pub fn generate_person_segmentation_in_path(
         )
     };
     if status != ffi::status::OK {
+        // SAFETY: the error pointer is either null or a bridge-allocated C string; `from_swift` frees it.
         return Err(unsafe { from_swift(status, err_msg) });
     }
     if !has_value || raw.bytes.is_null() {
@@ -154,6 +156,7 @@ pub fn generate_foreground_instance_mask_in_path(
     let mut instance_count: usize = 0;
     let mut has_value = false;
     let mut err_msg: *mut c_char = ptr::null_mut();
+    // SAFETY: all pointer arguments are valid stack locations or bridge-owned handles; strings are valid C strings for the duration of the call.
     let status = unsafe {
         ffi::vn_generate_foreground_instance_mask_in_path(
             path_c.as_ptr(),
@@ -164,6 +167,7 @@ pub fn generate_foreground_instance_mask_in_path(
         )
     };
     if status != ffi::status::OK {
+        // SAFETY: the error pointer is either null or a bridge-allocated C string; `from_swift` frees it.
         return Err(unsafe { from_swift(status, err_msg) });
     }
     if !has_value || raw.bytes.is_null() {
@@ -191,8 +195,10 @@ pub fn generate_foreground_instance_mask_observation_in_path(
 
 fn take_raw(raw: &mut ffi::SegmentationMaskRaw) -> SegmentationMask {
     let len = raw.height.saturating_mul(raw.bytes_per_row);
+    // SAFETY: `raw.bytes` is valid for `len` bytes as guaranteed by the Swift bridge.
     let slice = unsafe { core::slice::from_raw_parts(raw.bytes.cast::<u8>(), len) };
     let bytes = slice.to_vec();
+    // SAFETY: the pointer/count pair was allocated by the bridge and is freed exactly once here.
     unsafe { ffi::vn_segmentation_mask_free(raw) };
     SegmentationMask {
         width: raw.width,

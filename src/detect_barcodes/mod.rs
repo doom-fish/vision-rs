@@ -60,10 +60,12 @@ pub fn detect_barcodes_in_path(
     let mut count: usize = 0;
     let mut err_msg: *mut c_char = ptr::null_mut();
 
+    // SAFETY: all pointer arguments are valid stack locations or null-initialised out-params; strings are valid C strings for the duration of the call.
     let status = unsafe {
         ffi::vn_detect_barcodes_in_path(path_c.as_ptr(), &mut array, &mut count, &mut err_msg)
     };
     if status != ffi::status::OK {
+        // SAFETY: the error pointer is either null or a bridge-allocated C string; `from_swift` frees it.
         return Err(unsafe { from_swift(status, err_msg) });
     }
     if array.is_null() || count == 0 {
@@ -72,10 +74,12 @@ pub fn detect_barcodes_in_path(
     let typed = array.cast::<ffi::DetectedBarcodeRaw>();
     let mut out = Vec::with_capacity(count);
     for i in 0..count {
+        // SAFETY: the pointer is valid for the reported element count; the index is in bounds.
         let raw = unsafe { &*typed.add(i) };
         let payload = if raw.payload.is_null() {
             String::new()
         } else {
+            // SAFETY: the C string pointer is non-null (checked above) and valid for the duration of this borrow.
             unsafe { core::ffi::CStr::from_ptr(raw.payload) }
                 .to_string_lossy()
                 .into_owned()
@@ -83,6 +87,7 @@ pub fn detect_barcodes_in_path(
         let symbology = if raw.symbology.is_null() {
             String::new()
         } else {
+            // SAFETY: the C string pointer is non-null (checked above) and valid for the duration of this borrow.
             unsafe { core::ffi::CStr::from_ptr(raw.symbology) }
                 .to_string_lossy()
                 .into_owned()
@@ -99,6 +104,7 @@ pub fn detect_barcodes_in_path(
             },
         });
     }
+    // SAFETY: the pointer/count pair was allocated by the bridge and is freed exactly once here.
     unsafe { ffi::vn_detected_barcodes_free(array, count) };
     Ok(out)
 }

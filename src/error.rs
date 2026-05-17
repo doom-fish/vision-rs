@@ -31,6 +31,13 @@ impl fmt::Display for VisionError {
 
 impl std::error::Error for VisionError {}
 
+/// Convert a Swift bridge status/error pair into a Rust [`VisionError`].
+///
+/// # Safety
+///
+/// `error_str` must be either null or a valid null-terminated C string
+/// allocated by the Swift bridge. When non-null, this function takes
+/// ownership and frees it exactly once via `vn_string_free`.
 pub(crate) unsafe fn from_swift(status: i32, error_str: *mut core::ffi::c_char) -> VisionError {
     let message = if error_str.is_null() {
         String::new()

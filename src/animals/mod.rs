@@ -49,6 +49,7 @@ pub fn recognize_animals_in_path(
     let mut out_array: *mut core::ffi::c_void = ptr::null_mut();
     let mut out_count: usize = 0;
     let mut err_msg: *mut c_char = ptr::null_mut();
+    // SAFETY: all pointer arguments are valid stack locations or null-initialised out-params; strings are valid C strings for the duration of the call.
     let status = unsafe {
         ffi::vn_recognize_animals_in_path(
             path_c.as_ptr(),
@@ -58,6 +59,7 @@ pub fn recognize_animals_in_path(
         )
     };
     if status != ffi::status::OK {
+        // SAFETY: the error pointer is either null or a bridge-allocated C string; `from_swift` frees it.
         return Err(unsafe { from_swift(status, err_msg) });
     }
     if out_array.is_null() || out_count == 0 {
@@ -66,10 +68,12 @@ pub fn recognize_animals_in_path(
     let typed = out_array.cast::<ffi::RecognizedAnimalRaw>();
     let mut v = Vec::with_capacity(out_count);
     for i in 0..out_count {
+        // SAFETY: the pointer is valid for the reported element count; the index is in bounds.
         let raw = unsafe { &*typed.add(i) };
         let identifier = if raw.identifier.is_null() {
             String::new()
         } else {
+            // SAFETY: the C string pointer is non-null (checked above) and valid for the duration of this borrow.
             unsafe { core::ffi::CStr::from_ptr(raw.identifier) }
                 .to_string_lossy()
                 .into_owned()
@@ -85,6 +89,7 @@ pub fn recognize_animals_in_path(
             },
         });
     }
+    // SAFETY: the pointer/count pair was allocated by the bridge and is freed exactly once here.
     unsafe { ffi::vn_recognized_animals_free(out_array, out_count) };
     Ok(v)
 }

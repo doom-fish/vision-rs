@@ -31,12 +31,14 @@
 use std::{
     ffi::{c_void, CString},
     future::Future,
+    panic::AssertUnwindSafe,
     path::Path,
     pin::Pin,
     task::{Context, Poll},
 };
 
 use doom_fish_utils::completion::{error_from_cstr, AsyncCompletion, AsyncCompletionFuture};
+use doom_fish_utils::panic_safe::log_callback_panic;
 
 use crate::{error::VisionError, ffi};
 
@@ -94,23 +96,31 @@ fn path_to_cstring(path: impl AsRef<Path>) -> Result<CString, VisionError> {
 // Text Recognition Future
 // ============================================================================
 
+/// Parse the raw text-recognition result coming from the Swift bridge.
+///
+/// Returns `Ok(results)` on success or `Err(message)` on any Swift-reported error.
+/// Frees the Swift-owned `result` allocation before returning.
+///
+/// # Safety
+///
+/// `result` must be either null or a valid pointer to an `AsyncArrayResultRaw` struct
+/// produced by the Swift bridge whose `array` field, when non-null, points to
+/// `count` valid `RecognizedTextRaw` elements.  `error` must be either null or a
+/// valid null-terminated C string owned by the bridge.
 #[cfg(feature = "recognize_text")]
-extern "C" fn text_result_cb(result: *const c_void, error: *const i8, ctx: *mut c_void) {
+unsafe fn parse_text_result(
+    result: *const c_void,
+    error: *const i8,
+) -> Result<Vec<RecognizedText>, String> {
     if !error.is_null() {
-        let message = unsafe { error_from_cstr(error) };
-        unsafe { AsyncCompletion::<Vec<RecognizedText>>::complete_err(ctx, message) };
-        return;
+        // SAFETY: caller guarantees `error` is a valid C string when non-null.
+        return Err(unsafe { error_from_cstr(error) });
     }
     if result.is_null() {
-        unsafe {
-            AsyncCompletion::<Vec<RecognizedText>>::complete_err(
-                ctx,
-                "text recognition returned null".into(),
-            );
-        };
-        return;
+        return Err("text recognition returned null".into());
     }
 
+    // SAFETY: caller guarantees `result` is a valid `AsyncArrayResultRaw` pointer.
     let raw = unsafe { &*(result.cast::<ffi::AsyncArrayResultRaw>()) };
     let texts = if raw.array.is_null() || raw.count == 0 {
         Vec::new()
@@ -118,10 +128,12 @@ extern "C" fn text_result_cb(result: *const c_void, error: *const i8, ctx: *mut 
         let typed = raw.array.cast::<ffi::RecognizedTextRaw>();
         let mut out = Vec::with_capacity(raw.count);
         for index in 0..raw.count {
+            // SAFETY: `typed` is valid for `raw.count` elements; `index` is in bounds.
             let entry = unsafe { &*typed.add(index) };
             let text = if entry.text.is_null() {
                 String::new()
             } else {
+                // SAFETY: `entry.text` is a valid C string when non-null.
                 unsafe { std::ffi::CStr::from_ptr(entry.text) }
                     .to_string_lossy()
                     .into_owned()
@@ -137,12 +149,55 @@ extern "C" fn text_result_cb(result: *const c_void, error: *const i8, ctx: *mut 
                 },
             });
         }
+        // SAFETY: `raw.array` and `raw.count` are the pair produced by the Swift bridge;
+        // this is the unique call site that frees them.
         unsafe { ffi::vn_recognized_text_free(raw.array, raw.count) };
         out
     };
 
+    // SAFETY: `result` is the non-null allocation produced by the Swift async bridge;
+    // freeing here is safe because this is the unique call site for this allocation.
     unsafe { ffi::vn_async_array_result_free(result.cast_mut()) };
-    unsafe { AsyncCompletion::complete_ok(ctx, texts) };
+    Ok(texts)
+}
+
+/// `extern "C"` callback invoked by the Swift bridge when text recognition completes.
+///
+/// # Safety contract
+///
+/// Called from a Swift `DispatchQueue`; all pointer arguments follow the
+/// Swift-bridge protocol documented on [`parse_text_result`].  The body is
+/// wrapped in `catch_unwind` so that an unexpected Rust panic does not unwind
+/// through the Swift/C ABI (which is undefined behaviour).  On panic the
+/// future is completed with an error rather than left permanently pending.
+#[cfg(feature = "recognize_text")]
+extern "C" fn text_result_cb(result: *const c_void, error: *const i8, ctx: *mut c_void) {
+    // SAFETY: `result` and `error` are valid for the duration of this call per
+    // the Swift bridge contract. `AssertUnwindSafe` is correct here because the
+    // raw pointers are not accessed after unwinding.
+    let outcome =
+        std::panic::catch_unwind(AssertUnwindSafe(|| unsafe { parse_text_result(result, error) }));
+    match outcome {
+        Ok(Ok(texts)) => {
+            // SAFETY: `ctx` is the `Arc<AsyncCompletionInner<_>>` context from
+            // `AsyncCompletion::create()`; it is valid and unconsumed at this point.
+            unsafe { AsyncCompletion::complete_ok(ctx, texts) };
+        }
+        Ok(Err(msg)) => {
+            // SAFETY: same as above.
+            unsafe { AsyncCompletion::<Vec<RecognizedText>>::complete_err(ctx, msg) };
+        }
+        Err(payload) => {
+            log_callback_panic("text_result_cb", payload.as_ref());
+            // SAFETY: same as above.
+            unsafe {
+                AsyncCompletion::<Vec<RecognizedText>>::complete_err(
+                    ctx,
+                    "panic in Vision text_result_cb".into(),
+                );
+            };
+        }
+    }
 }
 
 /// Future resolving to a `Vec<RecognizedText>`.
@@ -209,6 +264,10 @@ impl AsyncRecognizeText {
             },
             Ok(path_c) => {
                 let (future, ctx) = AsyncCompletion::create();
+                // SAFETY: `path_c` is a valid null-terminated C string for the duration of
+                // this call. `text_result_cb` satisfies the callback contract: single-fire,
+                // completes the context exactly once. `ctx` is the `Arc` context from
+                // `AsyncCompletion::create()` cast to `*mut c_void`.
                 unsafe {
                     ffi::vn_recognize_text_in_path_async(
                         path_c.as_ptr(),
@@ -230,23 +289,27 @@ impl AsyncRecognizeText {
 // Face Detection Future
 // ============================================================================
 
+/// Parse the raw face-detection result from the Swift bridge.
+///
+/// # Safety
+///
+/// `result` must be either null or a valid `AsyncArrayResultRaw` pointer whose
+/// `array` field, when non-null, points to `count` valid `DetectedFaceRaw`
+/// elements.  `error` must be either null or a valid null-terminated C string.
 #[cfg(feature = "detect_faces")]
-extern "C" fn face_result_cb(result: *const c_void, error: *const i8, ctx: *mut c_void) {
+unsafe fn parse_face_result(
+    result: *const c_void,
+    error: *const i8,
+) -> Result<Vec<DetectedFace>, String> {
     if !error.is_null() {
-        let message = unsafe { error_from_cstr(error) };
-        unsafe { AsyncCompletion::<Vec<DetectedFace>>::complete_err(ctx, message) };
-        return;
+        // SAFETY: caller guarantees `error` is a valid C string when non-null.
+        return Err(unsafe { error_from_cstr(error) });
     }
     if result.is_null() {
-        unsafe {
-            AsyncCompletion::<Vec<DetectedFace>>::complete_err(
-                ctx,
-                "face detection returned null".into(),
-            );
-        };
-        return;
+        return Err("face detection returned null".into());
     }
 
+    // SAFETY: caller guarantees `result` is a valid `AsyncArrayResultRaw` pointer.
     let raw = unsafe { &*(result.cast::<ffi::AsyncArrayResultRaw>()) };
     let faces = if raw.array.is_null() || raw.count == 0 {
         Vec::new()
@@ -255,6 +318,7 @@ extern "C" fn face_result_cb(result: *const c_void, error: *const i8, ctx: *mut 
         let mut out = Vec::with_capacity(raw.count);
         let nan_to_none = |value: f32| if value.is_nan() { None } else { Some(value) };
         for index in 0..raw.count {
+            // SAFETY: `typed` is valid for `raw.count` elements; `index` is in bounds.
             let entry = unsafe { &*typed.add(index) };
             out.push(DetectedFace {
                 bounding_box: crate::recognize_text::BoundingBox {
@@ -269,12 +333,46 @@ extern "C" fn face_result_cb(result: *const c_void, error: *const i8, ctx: *mut 
                 pitch: nan_to_none(entry.pitch),
             });
         }
+        // SAFETY: `raw.array` and `raw.count` are the pair produced by the Swift bridge;
+        // this is the unique call site that frees them.
         unsafe { ffi::vn_detected_faces_free(raw.array, raw.count) };
         out
     };
 
+    // SAFETY: `result` is the non-null allocation produced by the Swift async bridge.
     unsafe { ffi::vn_async_array_result_free(result.cast_mut()) };
-    unsafe { AsyncCompletion::complete_ok(ctx, faces) };
+    Ok(faces)
+}
+
+/// `extern "C"` callback invoked by the Swift bridge when face detection completes.
+///
+/// Wrapped in `catch_unwind`; on panic the future is resolved with an error.
+#[cfg(feature = "detect_faces")]
+extern "C" fn face_result_cb(result: *const c_void, error: *const i8, ctx: *mut c_void) {
+    // SAFETY: `result` and `error` are valid for the duration of this call per the bridge
+    // contract. `AssertUnwindSafe` is correct: raw pointers are not accessed after unwinding.
+    let outcome =
+        std::panic::catch_unwind(AssertUnwindSafe(|| unsafe { parse_face_result(result, error) }));
+    match outcome {
+        Ok(Ok(faces)) => {
+            // SAFETY: `ctx` is the `Arc<AsyncCompletionInner<_>>` context from `AsyncCompletion::create()`.
+            unsafe { AsyncCompletion::complete_ok(ctx, faces) };
+        }
+        Ok(Err(msg)) => {
+            // SAFETY: same as above.
+            unsafe { AsyncCompletion::<Vec<DetectedFace>>::complete_err(ctx, msg) };
+        }
+        Err(payload) => {
+            log_callback_panic("face_result_cb", payload.as_ref());
+            // SAFETY: same as above.
+            unsafe {
+                AsyncCompletion::<Vec<DetectedFace>>::complete_err(
+                    ctx,
+                    "panic in Vision face_result_cb".into(),
+                );
+            };
+        }
+    }
 }
 
 /// Future resolving to a `Vec<DetectedFace>`.
@@ -323,6 +421,8 @@ impl AsyncDetectFaces {
             },
             Ok(path_c) => {
                 let (future, ctx) = AsyncCompletion::create();
+                // SAFETY: `path_c` is a valid C string. `face_result_cb` satisfies the
+                // single-fire callback contract and completes `ctx` exactly once.
                 unsafe {
                     ffi::vn_detect_faces_in_path_async(path_c.as_ptr(), face_result_cb, ctx);
                 };
@@ -338,23 +438,27 @@ impl AsyncDetectFaces {
 // Barcode Detection Future
 // ============================================================================
 
+/// Parse the raw barcode-detection result from the Swift bridge.
+///
+/// # Safety
+///
+/// `result` must be either null or a valid `AsyncArrayResultRaw` pointer whose
+/// `array` field, when non-null, points to `count` valid `DetectedBarcodeRaw`
+/// elements.  `error` must be either null or a valid null-terminated C string.
 #[cfg(feature = "detect_barcodes")]
-extern "C" fn barcode_result_cb(result: *const c_void, error: *const i8, ctx: *mut c_void) {
+unsafe fn parse_barcode_result(
+    result: *const c_void,
+    error: *const i8,
+) -> Result<Vec<DetectedBarcode>, String> {
     if !error.is_null() {
-        let message = unsafe { error_from_cstr(error) };
-        unsafe { AsyncCompletion::<Vec<DetectedBarcode>>::complete_err(ctx, message) };
-        return;
+        // SAFETY: caller guarantees `error` is a valid C string when non-null.
+        return Err(unsafe { error_from_cstr(error) });
     }
     if result.is_null() {
-        unsafe {
-            AsyncCompletion::<Vec<DetectedBarcode>>::complete_err(
-                ctx,
-                "barcode detection returned null".into(),
-            );
-        };
-        return;
+        return Err("barcode detection returned null".into());
     }
 
+    // SAFETY: caller guarantees `result` is a valid `AsyncArrayResultRaw` pointer.
     let raw = unsafe { &*(result.cast::<ffi::AsyncArrayResultRaw>()) };
     let barcodes = if raw.array.is_null() || raw.count == 0 {
         Vec::new()
@@ -362,10 +466,12 @@ extern "C" fn barcode_result_cb(result: *const c_void, error: *const i8, ctx: *m
         let typed = raw.array.cast::<ffi::DetectedBarcodeRaw>();
         let mut out = Vec::with_capacity(raw.count);
         for index in 0..raw.count {
+            // SAFETY: `typed` is valid for `raw.count` elements; `index` is in bounds.
             let entry = unsafe { &*typed.add(index) };
             let payload = if entry.payload.is_null() {
                 String::new()
             } else {
+                // SAFETY: `entry.payload` is a valid C string when non-null.
                 unsafe { std::ffi::CStr::from_ptr(entry.payload) }
                     .to_string_lossy()
                     .into_owned()
@@ -373,6 +479,7 @@ extern "C" fn barcode_result_cb(result: *const c_void, error: *const i8, ctx: *m
             let symbology = if entry.symbology.is_null() {
                 String::new()
             } else {
+                // SAFETY: `entry.symbology` is a valid C string when non-null.
                 unsafe { std::ffi::CStr::from_ptr(entry.symbology) }
                     .to_string_lossy()
                     .into_owned()
@@ -389,12 +496,46 @@ extern "C" fn barcode_result_cb(result: *const c_void, error: *const i8, ctx: *m
                 },
             });
         }
+        // SAFETY: `raw.array` and `raw.count` are the Swift-bridge pair; unique free site.
         unsafe { ffi::vn_detected_barcodes_free(raw.array, raw.count) };
         out
     };
 
+    // SAFETY: `result` is the non-null allocation produced by the Swift async bridge.
     unsafe { ffi::vn_async_array_result_free(result.cast_mut()) };
-    unsafe { AsyncCompletion::complete_ok(ctx, barcodes) };
+    Ok(barcodes)
+}
+
+/// `extern "C"` callback invoked by the Swift bridge when barcode detection completes.
+///
+/// Wrapped in `catch_unwind`; on panic the future is resolved with an error.
+#[cfg(feature = "detect_barcodes")]
+extern "C" fn barcode_result_cb(result: *const c_void, error: *const i8, ctx: *mut c_void) {
+    // SAFETY: `result` and `error` are valid for the duration of this call per the bridge
+    // contract. `AssertUnwindSafe` is correct: raw pointers are not accessed after unwinding.
+    let outcome = std::panic::catch_unwind(AssertUnwindSafe(|| unsafe {
+        parse_barcode_result(result, error)
+    }));
+    match outcome {
+        Ok(Ok(barcodes)) => {
+            // SAFETY: `ctx` is the `Arc<AsyncCompletionInner<_>>` context from `AsyncCompletion::create()`.
+            unsafe { AsyncCompletion::complete_ok(ctx, barcodes) };
+        }
+        Ok(Err(msg)) => {
+            // SAFETY: same as above.
+            unsafe { AsyncCompletion::<Vec<DetectedBarcode>>::complete_err(ctx, msg) };
+        }
+        Err(payload) => {
+            log_callback_panic("barcode_result_cb", payload.as_ref());
+            // SAFETY: same as above.
+            unsafe {
+                AsyncCompletion::<Vec<DetectedBarcode>>::complete_err(
+                    ctx,
+                    "panic in Vision barcode_result_cb".into(),
+                );
+            };
+        }
+    }
 }
 
 /// Future resolving to a `Vec<DetectedBarcode>`.
@@ -444,6 +585,8 @@ impl AsyncDetectBarcodes {
             },
             Ok(path_c) => {
                 let (future, ctx) = AsyncCompletion::create();
+                // SAFETY: `path_c` is a valid C string. `barcode_result_cb` satisfies the
+                // single-fire callback contract and completes `ctx` exactly once.
                 unsafe {
                     ffi::vn_detect_barcodes_in_path_async(path_c.as_ptr(), barcode_result_cb, ctx);
                 };
@@ -459,36 +602,36 @@ impl AsyncDetectBarcodes {
 // Person Segmentation Future
 // ============================================================================
 
+/// Parse the raw person-segmentation result from the Swift bridge.
+///
+/// # Safety
+///
+/// `result` must be either null or a valid `AsyncSegResultRaw` pointer whose
+/// `bytes` field, when non-null, points to at least `height * bytes_per_row` bytes.
+/// `error` must be either null or a valid null-terminated C string.
 #[cfg(feature = "segmentation")]
-extern "C" fn seg_result_cb(result: *const c_void, error: *const i8, ctx: *mut c_void) {
+unsafe fn parse_seg_result(
+    result: *const c_void,
+    error: *const i8,
+) -> Result<SegmentationMask, String> {
     if !error.is_null() {
-        let message = unsafe { error_from_cstr(error) };
-        unsafe { AsyncCompletion::<SegmentationMask>::complete_err(ctx, message) };
-        return;
+        // SAFETY: caller guarantees `error` is a valid C string when non-null.
+        return Err(unsafe { error_from_cstr(error) });
     }
     if result.is_null() {
-        unsafe {
-            AsyncCompletion::<SegmentationMask>::complete_err(
-                ctx,
-                "segmentation returned null".into(),
-            );
-        };
-        return;
+        return Err("segmentation returned null".into());
     }
 
+    // SAFETY: caller guarantees `result` is a valid `AsyncSegResultRaw` pointer.
     let raw = unsafe { &*(result.cast::<ffi::AsyncSegResultRaw>()) };
     if raw.bytes.is_null() {
+        // SAFETY: `result` is the non-null allocation produced by the Swift async bridge.
         unsafe { ffi::vn_async_seg_result_free(result.cast_mut()) };
-        unsafe {
-            AsyncCompletion::<SegmentationMask>::complete_err(
-                ctx,
-                "segmentation bytes were null".into(),
-            );
-        };
-        return;
+        return Err("segmentation bytes were null".into());
     }
 
     let len = raw.height.saturating_mul(raw.bytes_per_row);
+    // SAFETY: `raw.bytes` is valid for `len` bytes as guaranteed by the Swift bridge.
     let bytes = unsafe { core::slice::from_raw_parts(raw.bytes, len) }.to_vec();
     let mask = SegmentationMask {
         width: raw.width,
@@ -497,8 +640,41 @@ extern "C" fn seg_result_cb(result: *const c_void, error: *const i8, ctx: *mut c
         bytes,
     };
 
+    // SAFETY: `result` is the non-null allocation produced by the Swift async bridge;
+    // unique free site.
     unsafe { ffi::vn_async_seg_result_free(result.cast_mut()) };
-    unsafe { AsyncCompletion::complete_ok(ctx, mask) };
+    Ok(mask)
+}
+
+/// `extern "C"` callback invoked by the Swift bridge when person segmentation completes.
+///
+/// Wrapped in `catch_unwind`; on panic the future is resolved with an error.
+#[cfg(feature = "segmentation")]
+extern "C" fn seg_result_cb(result: *const c_void, error: *const i8, ctx: *mut c_void) {
+    // SAFETY: `result` and `error` are valid for the duration of this call per the bridge
+    // contract. `AssertUnwindSafe` is correct: raw pointers are not accessed after unwinding.
+    let outcome =
+        std::panic::catch_unwind(AssertUnwindSafe(|| unsafe { parse_seg_result(result, error) }));
+    match outcome {
+        Ok(Ok(mask)) => {
+            // SAFETY: `ctx` is the `Arc<AsyncCompletionInner<_>>` context from `AsyncCompletion::create()`.
+            unsafe { AsyncCompletion::complete_ok(ctx, mask) };
+        }
+        Ok(Err(msg)) => {
+            // SAFETY: same as above.
+            unsafe { AsyncCompletion::<SegmentationMask>::complete_err(ctx, msg) };
+        }
+        Err(payload) => {
+            log_callback_panic("seg_result_cb", payload.as_ref());
+            // SAFETY: same as above.
+            unsafe {
+                AsyncCompletion::<SegmentationMask>::complete_err(
+                    ctx,
+                    "panic in Vision seg_result_cb".into(),
+                );
+            };
+        }
+    }
 }
 
 /// Future resolving to a `SegmentationMask`.
@@ -557,6 +733,9 @@ impl AsyncPersonSegmentation {
             },
             Ok(path_c) => {
                 let (future, ctx) = AsyncCompletion::create();
+                // SAFETY: `path_c` is a valid C string. `seg_result_cb` satisfies the
+                // single-fire callback contract and completes `ctx` exactly once.
+                // `self.quality as i32` is always a valid quality-level enum value.
                 unsafe {
                     ffi::vn_generate_person_segmentation_async(
                         path_c.as_ptr(),
