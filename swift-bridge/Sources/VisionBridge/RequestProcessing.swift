@@ -101,6 +101,28 @@ internal func buildRecognizeTextRequest(
     return request
 }
 
+internal func applyImageBasedRequestConfig(
+    _ request: VNImageBasedRequest,
+    roiX: Double,
+    roiY: Double,
+    roiW: Double,
+    roiH: Double,
+    hasRegionOfInterest: Bool,
+    preferBackgroundProcessing: Bool,
+    usesCPUOnly: Bool,
+    revision: Int,
+    hasRevision: Bool
+) {
+    if hasRegionOfInterest {
+        request.regionOfInterest = CGRect(x: roiX, y: roiY, width: roiW, height: roiH)
+    }
+    request.preferBackgroundProcessing = preferBackgroundProcessing
+    request.usesCPUOnly = usesCPUOnly
+    if hasRevision {
+        request.revision = revision
+    }
+}
+
 @_cdecl("vn_image_request_handler_perform_text_request")
 public func vn_image_request_handler_perform_text_request(
     _ imagePath: UnsafePointer<CChar>,

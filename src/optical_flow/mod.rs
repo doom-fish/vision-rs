@@ -17,6 +17,7 @@ use std::path::Path;
 
 use crate::error::{from_swift, VisionError};
 use crate::ffi;
+use crate::request_base::PixelBufferObservation;
 use crate::segmentation::SegmentationMask;
 
 /// `VNGenerateOpticalFlowRequest.ComputationAccuracy`.
@@ -86,4 +87,19 @@ pub fn generate_optical_flow_in_paths(
         bytes_per_row: raw.bytes_per_row,
         bytes,
     }))
+}
+
+/// Compute the optical flow and wrap the result as a generic
+/// `VNPixelBufferObservation`.
+///
+/// # Errors
+///
+/// Returns [`VisionError::ImageLoadFailed`] / [`VisionError::RequestFailed`].
+pub fn generate_optical_flow_observation_in_paths(
+    path_a: impl AsRef<Path>,
+    path_b: impl AsRef<Path>,
+    accuracy: OpticalFlowAccuracy,
+) -> Result<Option<PixelBufferObservation>, VisionError> {
+    generate_optical_flow_in_paths(path_a, path_b, accuracy)
+        .map(|mask| mask.map(PixelBufferObservation::from))
 }

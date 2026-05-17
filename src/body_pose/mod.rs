@@ -8,7 +8,9 @@ use std::path::Path;
 
 use crate::error::{from_swift, VisionError};
 use crate::ffi;
+use crate::recognized_points::{RecognizedPoint, RecognizedPointsObservation};
 use crate::recognize_text::BoundingBox;
+use crate::request_base::NormalizedRect;
 
 /// A single detected joint in normalised image coordinates
 /// (`0.0..=1.0`, bottom-left origin).
@@ -29,6 +31,120 @@ pub struct DetectedBodyPose {
     pub bounding_box: BoundingBox,
     pub confidence: f32,
     pub joints: HashMap<String, JointPoint>,
+}
+
+/// A dedicated `VNHumanBodyPoseObservation` wrapper built on top of the generic
+/// `VNRecognizedPointsObservation` surface.
+#[derive(Debug, Clone, PartialEq)]
+pub struct HumanBodyPoseObservation {
+    pub recognized_points: RecognizedPointsObservation,
+    pub available_joint_names: Vec<String>,
+    pub available_joint_group_names: Vec<String>,
+}
+
+impl HumanBodyPoseObservation {
+    #[must_use]
+    pub const fn supported_joint_names() -> &'static [&'static str] {
+        &[
+            "nose", "leftEye", "rightEye", "leftEar", "rightEar",
+            "leftShoulder", "rightShoulder", "neck", "leftElbow",
+            "rightElbow", "leftWrist", "rightWrist", "leftHip",
+            "rightHip", "root", "leftKnee", "rightKnee", "leftAnkle",
+            "rightAnkle",
+        ]
+    }
+
+    #[must_use]
+    pub const fn supported_joint_group_names() -> &'static [&'static str] {
+        &["face", "torso", "leftArm", "rightArm", "leftLeg", "rightLeg", "all"]
+    }
+
+    #[must_use]
+    pub fn into_detected_body_pose(self) -> DetectedBodyPose {
+        self.into()
+    }
+}
+
+impl From<DetectedBodyPose> for HumanBodyPoseObservation {
+    fn from(value: DetectedBodyPose) -> Self {
+        let mut available_joint_names = value.joints.keys().cloned().collect::<Vec<_>>();
+        available_joint_names.sort();
+        Self {
+            recognized_points: RecognizedPointsObservation {
+                bounding_box: NormalizedRect::new(
+                    value.bounding_box.x,
+                    value.bounding_box.y,
+                    value.bounding_box.width,
+                    value.bounding_box.height,
+                ),
+                confidence: value.confidence,
+                available_keys: available_joint_names.clone(),
+                available_group_keys: Self::supported_joint_group_names()
+                    .iter()
+                    .map(|name| (*name).to_string())
+                    .collect(),
+                points: value
+                    .joints
+                    .iter()
+                    .map(|(name, point)| {
+                        (
+                            name.clone(),
+                            RecognizedPoint {
+                                x: point.x,
+                                y: point.y,
+                                confidence: point.confidence,
+                            },
+                        )
+                    })
+                    .collect(),
+            },
+            available_joint_names,
+            available_joint_group_names: Self::supported_joint_group_names()
+                .iter()
+                .map(|name| (*name).to_string())
+                .collect(),
+        }
+    }
+}
+
+impl From<HumanBodyPoseObservation> for DetectedBodyPose {
+    fn from(value: HumanBodyPoseObservation) -> Self {
+        Self {
+            bounding_box: BoundingBox {
+                x: value.recognized_points.bounding_box.x,
+                y: value.recognized_points.bounding_box.y,
+                width: value.recognized_points.bounding_box.width,
+                height: value.recognized_points.bounding_box.height,
+            },
+            confidence: value.recognized_points.confidence,
+            joints: value
+                .recognized_points
+                .points
+                .into_iter()
+                .map(|(name, point)| {
+                    (
+                        name,
+                        JointPoint {
+                            x: point.x,
+                            y: point.y,
+                            confidence: point.confidence,
+                        },
+                    )
+                })
+                .collect(),
+        }
+    }
+}
+
+/// Detect human body-pose observations in the image at `path`.
+///
+/// # Errors
+///
+/// Returns [`VisionError::ImageLoadFailed`] / [`VisionError::RequestFailed`].
+pub fn detect_human_body_pose_observations_in_path(
+    path: impl AsRef<Path>,
+) -> Result<Vec<HumanBodyPoseObservation>, VisionError> {
+    detect_human_body_pose_in_path(path).map(|poses| poses.into_iter().map(Into::into).collect())
 }
 
 /// Detect human body poses in the image at `path`.

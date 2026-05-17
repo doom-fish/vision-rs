@@ -217,6 +217,21 @@ pub struct SegmentationMaskRaw {
     pub bytes: *mut c_void,
 }
 
+/// Mirrors `VNCoreMLFeatureValueRaw` in the Swift bridge. Layout-compatible.
+#[repr(C)]
+pub struct CoreMLFeatureValueRaw {
+    pub feature_name: *mut c_char,
+    pub type_name: *mut c_char,
+    pub kind: i32,
+    pub int64_value: i64,
+    pub double_value: f64,
+    pub string_value: *mut c_char,
+    pub multi_array_shape: *mut usize,
+    pub multi_array_shape_count: usize,
+    pub multi_array_values: *mut f64,
+    pub multi_array_value_count: usize,
+}
+
 extern "C" {
     pub fn vn_string_free(s: *mut c_char);
 
@@ -474,6 +489,48 @@ extern "C" {
         out_error_message: *mut *mut c_char,
     ) -> i32;
 
+    pub fn vn_coreml_request_classify_in_path(
+        path: *const c_char,
+        model_path: *const c_char,
+        input_image_feature_name: *const c_char,
+        has_input_image_feature_name: bool,
+        image_crop_and_scale_option: i32,
+        roi_x: f64,
+        roi_y: f64,
+        roi_w: f64,
+        roi_h: f64,
+        has_region_of_interest: bool,
+        prefer_background_processing: bool,
+        uses_cpu_only: bool,
+        revision: usize,
+        has_revision: bool,
+        out_array: *mut *mut c_void,
+        out_count: *mut usize,
+        out_error_message: *mut *mut c_char,
+    ) -> i32;
+
+    pub fn vn_coreml_feature_value_in_path(
+        path: *const c_char,
+        model_path: *const c_char,
+        input_image_feature_name: *const c_char,
+        has_input_image_feature_name: bool,
+        image_crop_and_scale_option: i32,
+        roi_x: f64,
+        roi_y: f64,
+        roi_w: f64,
+        roi_h: f64,
+        has_region_of_interest: bool,
+        prefer_background_processing: bool,
+        uses_cpu_only: bool,
+        revision: usize,
+        has_revision: bool,
+        out_feature: *mut CoreMLFeatureValueRaw,
+        out_has_value: *mut bool,
+        out_error_message: *mut *mut c_char,
+    ) -> i32;
+
+    pub fn vn_coreml_feature_value_free(feature: *mut CoreMLFeatureValueRaw);
+
     pub fn vn_test_helper_render_text_png(
         text: *const c_char,
         width: i32,
@@ -523,6 +580,19 @@ pub struct SimpleRectRaw {
     pub h: f64,
     pub confidence: f32,
     pub _pad: f32,
+}
+
+/// Mirrors `VNTextObservationRaw`.
+#[repr(C)]
+pub struct TextObservationRaw {
+    pub bbox_x: f64,
+    pub bbox_y: f64,
+    pub bbox_w: f64,
+    pub bbox_h: f64,
+    pub confidence: f32,
+    pub _pad: f32,
+    pub character_boxes: *mut SimpleRectRaw,
+    pub character_box_count: usize,
 }
 
 /// Mirrors `VNTrajectoryRaw`.
@@ -585,6 +655,23 @@ extern "C" {
         out_count: *mut isize,
         out_err: *mut *mut c_char,
     ) -> i32;
+    pub fn vn_detect_text_observations_in_path(
+        path: *const c_char,
+        reports_character_boxes: bool,
+        roi_x: f64,
+        roi_y: f64,
+        roi_w: f64,
+        roi_h: f64,
+        has_region_of_interest: bool,
+        prefer_background_processing: bool,
+        uses_cpu_only: bool,
+        revision: usize,
+        has_revision: bool,
+        out_observations: *mut *mut TextObservationRaw,
+        out_count: *mut usize,
+        out_err: *mut *mut c_char,
+    ) -> i32;
+    pub fn vn_text_observations_free(ptr: *mut c_void, count: usize);
     pub fn vn_objectness_saliency_in_path(
         path: *const c_char,
         out_rects: *mut *mut SimpleRectRaw,
