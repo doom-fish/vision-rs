@@ -15,6 +15,7 @@ use std::path::Path;
 
 use crate::error::{from_swift, VisionError};
 use crate::ffi;
+use crate::request_base::PixelBufferObservation;
 
 /// Apple person-segmentation quality.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -40,6 +41,49 @@ pub struct SegmentationMask {
 pub struct InstanceMask {
     pub mask: SegmentationMask,
     pub instance_count: usize,
+}
+
+/// A dedicated `VNInstanceMaskObservation` wrapper.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct InstanceMaskObservation {
+    pub pixel_buffer_observation: PixelBufferObservation,
+    pub instance_count: usize,
+}
+
+impl InstanceMaskObservation {
+    #[must_use]
+    pub fn into_instance_mask(self) -> InstanceMask {
+        self.into()
+    }
+}
+
+impl From<SegmentationMask> for PixelBufferObservation {
+    fn from(value: SegmentationMask) -> Self {
+        Self::new(value.width, value.height, value.bytes_per_row, value.bytes)
+    }
+}
+
+impl From<InstanceMask> for InstanceMaskObservation {
+    fn from(value: InstanceMask) -> Self {
+        Self {
+            pixel_buffer_observation: value.mask.into(),
+            instance_count: value.instance_count,
+        }
+    }
+}
+
+impl From<InstanceMaskObservation> for InstanceMask {
+    fn from(value: InstanceMaskObservation) -> Self {
+        Self {
+            mask: SegmentationMask {
+                width: value.pixel_buffer_observation.width,
+                height: value.pixel_buffer_observation.height,
+                bytes_per_row: value.pixel_buffer_observation.bytes_per_row,
+                bytes: value.pixel_buffer_observation.bytes,
+            },
+            instance_count: value.instance_count,
+        }
+    }
 }
 
 /// Generate a person/body silhouette mask for the image at `path`.
@@ -130,6 +174,19 @@ pub fn generate_foreground_instance_mask_in_path(
         mask,
         instance_count,
     }))
+}
+
+/// Generate a dedicated `VNInstanceMaskObservation` wrapper for the image at
+/// `path`.
+///
+/// # Errors
+///
+/// Returns [`VisionError::ImageLoadFailed`] / [`VisionError::RequestFailed`].
+pub fn generate_foreground_instance_mask_observation_in_path(
+    path: impl AsRef<Path>,
+) -> Result<Option<InstanceMaskObservation>, VisionError> {
+    generate_foreground_instance_mask_in_path(path)
+        .map(|mask| mask.map(InstanceMaskObservation::from))
 }
 
 fn take_raw(raw: &mut ffi::SegmentationMaskRaw) -> SegmentationMask {

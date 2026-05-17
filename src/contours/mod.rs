@@ -21,6 +21,21 @@ pub struct Contour {
     pub aspect_ratio: f32,
 }
 
+/// A dedicated `VNContoursObservation` wrapper.
+#[derive(Debug, Clone, PartialEq)]
+pub struct ContoursObservation {
+    pub contour_count: usize,
+    pub top_level_contour_count: usize,
+    pub top_level_contours: Vec<Contour>,
+}
+
+impl ContoursObservation {
+    #[must_use]
+    pub fn into_top_level_contours(self) -> Vec<Contour> {
+        self.top_level_contours
+    }
+}
+
 /// Options for `detect_contours_in_path`.
 #[derive(Debug, Clone, Copy)]
 pub struct ContourOptions {
@@ -41,17 +56,15 @@ impl Default for ContourOptions {
     }
 }
 
-/// Detect top-level contours in the image at `path`. Only the
-/// outermost (top-level) contours are returned; nested contours are
-/// counted but not enumerated.
+/// Detect a dedicated `VNContoursObservation` wrapper in the image at `path`.
 ///
 /// # Errors
 ///
 /// Returns [`VisionError::ImageLoadFailed`] / [`VisionError::RequestFailed`].
-pub fn detect_contours_in_path(
+pub fn detect_contours_observation_in_path(
     path: impl AsRef<Path>,
     options: ContourOptions,
-) -> Result<Vec<Contour>, VisionError> {
+) -> Result<ContoursObservation, VisionError> {
     let path_str = path
         .as_ref()
         .to_str()
@@ -76,7 +89,11 @@ pub fn detect_contours_in_path(
         return Err(unsafe { from_swift(status, err_msg) });
     }
     if out_array.is_null() || out_count == 0 {
-        return Ok(Vec::new());
+        return Ok(ContoursObservation {
+            contour_count: 0,
+            top_level_contour_count: 0,
+            top_level_contours: Vec::new(),
+        });
     }
     let typed = out_array.cast::<ffi::ContourRaw>();
     let mut v = Vec::with_capacity(out_count);
@@ -95,5 +112,31 @@ pub fn detect_contours_in_path(
         });
     }
     unsafe { ffi::vn_contours_free(out_array, out_count) };
-    Ok(v)
+    let contour_count = v
+        .iter()
+        .map(|contour| usize::try_from(contour.child_count).unwrap_or_default())
+        .sum::<usize>()
+        + v.len();
+    Ok(ContoursObservation {
+        contour_count,
+        top_level_contour_count: v.len(),
+        top_level_contours: v,
+    })
+}
+
+/// Detect top-level contours in the image at `path`.
+///
+/// Only the outermost (top-level) contours are returned directly; use
+/// [`detect_contours_observation_in_path`] for the dedicated
+/// `VNContoursObservation` wrapper.
+///
+/// # Errors
+///
+/// Returns [`VisionError::ImageLoadFailed`] / [`VisionError::RequestFailed`].
+pub fn detect_contours_in_path(
+    path: impl AsRef<Path>,
+    options: ContourOptions,
+) -> Result<Vec<Contour>, VisionError> {
+    detect_contours_observation_in_path(path, options)
+        .map(ContoursObservation::into_top_level_contours)
 }

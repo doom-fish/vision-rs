@@ -10,6 +10,7 @@ use std::ptr;
 
 use crate::error::VisionError;
 use crate::ffi;
+use crate::request_base::ImageAlignmentObservation;
 
 /// 2D translation in source-image coordinates needed to align the
 /// floating image to the target.
@@ -55,6 +56,20 @@ pub fn register_translational(
     })
 }
 
+/// Compute a `VNImageAlignmentObservation` wrapper backed by a
+/// `VNImageTranslationAlignmentObservation`.
+///
+/// # Errors
+///
+/// Returns [`VisionError`] when either image fails to load or the Vision
+/// request errors.
+pub fn register_translational_observation(
+    target: impl AsRef<Path>,
+    floating: impl AsRef<Path>,
+) -> Result<ImageAlignmentObservation, VisionError> {
+    register_translational(target, floating).map(ImageAlignmentObservation::translational)
+}
+
 /// Compute a homographic (perspective) alignment from `floating` to
 /// `target`.
 ///
@@ -97,6 +112,20 @@ pub fn register_homographic(
             [out.m20, out.m21, out.m22],
         ],
     })
+}
+
+/// Compute a `VNImageAlignmentObservation` wrapper backed by a
+/// `VNImageHomographicAlignmentObservation`.
+///
+/// # Errors
+///
+/// Returns [`VisionError`] when either image fails to load or the Vision
+/// request errors.
+pub fn register_homographic_observation(
+    target: impl AsRef<Path>,
+    floating: impl AsRef<Path>,
+) -> Result<ImageAlignmentObservation, VisionError> {
+    register_homographic(target, floating).map(ImageAlignmentObservation::homographic)
 }
 
 unsafe fn take_err(p: *mut std::ffi::c_char) -> String {

@@ -7,9 +7,9 @@ use std::path::PathBuf;
 
 use apple_vision::recognize_text::_test_helper_render_text_png;
 use apple_vision::{
-    detect_animal_body_pose, detect_human_body_pose_3d, detect_text_rectangles,
-    detect_trajectories, objectness_saliency, person_instance_mask, register_homographic,
-    register_translational,
+    detect_animal_body_pose, detect_human_body_pose_3d, detect_text_observations,
+    detect_text_rectangles, detect_trajectories, objectness_saliency, person_instance_mask,
+    register_homographic, register_translational,
 };
 
 fn fixture() -> PathBuf {
@@ -39,6 +39,14 @@ fn main() {
 
     let rects = detect_text_rectangles(&img, false).expect("text rectangles");
     println!("✅ text rectangles: {} regions", rects.len());
+    let text_observations = detect_text_observations(&img, true).expect("text observations");
+    println!(
+        "✅ text observations: {} regions ({} character boxes in first region)",
+        text_observations.len(),
+        text_observations
+            .first()
+            .map_or(0, |observation| observation.character_boxes.len())
+    );
 
     let saliency = objectness_saliency(&img).expect("objectness saliency");
     println!("✅ objectness saliency: {} regions", saliency.len());

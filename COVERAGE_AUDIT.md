@@ -1,21 +1,25 @@
 # apple-vision coverage audit (vs MacOSX26.2.sdk)
 
 SDK_PUBLIC_SYMBOLS: 249
-VERIFIED: 56
-GAPS: 166
+VERIFIED: 77
+GAPS: 145
 EXEMPT: 27
-COVERAGE_PCT: 25.23%
+COVERAGE_PCT: 30.92%
 
 Methodology note: per the audit instructions, this inventory covers Vision interfaces, protocols, enum/struct typedefs, exported constants, and top-level C functions. Alias-only typedefs are not counted separately. A symbol is **VERIFIED** only when `apple-vision` exposes a dedicated public Rust surface for it; symbols used only inside the Swift bridge or flattened into crate-specific data structures remain in **GAPS**.
-
 ## 🟢 VERIFIED
 | Symbol | Kind | Header | Wrapped by |
 | --- | --- | --- | --- |
 | VNAnimalBodyPoseObservation | interface | VNObservation.h:790 | Exposed through the `AnimalJoint` result set returned by `detect_animal_body_pose`. |
 | VNBarcodeObservation | interface | VNObservation.h:411 | Exposed through `DetectedBarcode` (payload, symbology, confidence, bounding box). |
 | VNCalculateImageAestheticsScoresRequest | interface | VNCalculateImageAestheticsScoresRequest.h:19 | Exposed as `calculate_aesthetics_scores_in_path`; this is the current SDK spelling for image-aesthetics scoring. |
+| VNChirality | enum | VNTypes.h:96 | Wrapped by `hand_pose::HandChirality` and mapped from Vision chirality values. |
 | VNClassificationObservation | interface | VNObservation.h:148 | Exposed through `Classification`. |
 | VNClassifyImageRequest | interface | VNClassifyImageRequest.h:23 | Exposed as `classify_image_in_path`. |
+| VNContoursObservation | interface | VNObservation.h:612 | Exposed as `ContoursObservation`, including top-level contour trees plus contour counts. |
+| VNCoreMLFeatureValueObservation | interface | VNObservation.h:218 | Exposed as `CoreMLFeatureValueObservation` via `CoreMLRequest::feature_value` / `coreml_feature_value_in_path`. |
+| VNCoreMLModel | interface | VNCoreMLRequest.h:22 | Exposed as the dedicated `CoreMLModel` wrapper used by `CoreMLRequest`. |
+| VNCoreMLRequest | interface | VNCoreMLRequest.h:55 | Exposed as `CoreMLRequest`, `coreml_classify_in_path`, and `coreml_feature_value_in_path`. |
 | VNDetectAnimalBodyPoseRequest | interface | VNDetectAnimalBodyPoseRequest.h:19 | Exposed as `detect_animal_body_pose` (macOS 14+). |
 | VNDetectBarcodesRequest | interface | VNDetectBarcodesRequest.h:21 | Exposed as `detect_barcodes_in_path`. |
 | VNDetectContoursRequest | interface | VNDetectContoursRequest.h:21 | Exposed as `detect_contours_in_path`. |
@@ -29,6 +33,7 @@ Methodology note: per the audit instructions, this inventory covers Vision inter
 | VNDetectHumanHandPoseRequest | interface | VNDetectHumanHandPoseRequest.h:149 | Exposed as `detect_human_hand_pose_in_path`. |
 | VNDetectHumanRectanglesRequest | interface | VNDetectHumanRectanglesRequest.h:24 | Exposed as `detect_human_rectangles_in_path`. |
 | VNDetectRectanglesRequest | interface | VNDetectRectanglesRequest.h:21 | Exposed as `detect_rectangles_in_path`. |
+| VNDetectTextRectanglesRequest | interface | VNDetectTextRectanglesRequest.h:21 | Exposed as `TextRectanglesRequest`, `detect_text_rectangles`, and `detect_text_observations`. |
 | VNDetectTrajectoriesRequest | interface | VNDetectTrajectoriesRequest.h:21 | Exposed as `detect_trajectories`. |
 | VNDetectedObjectObservation | interface | VNObservation.h:71 | Object tracking surfaces updated bounding boxes + confidences across frames. |
 | VNFaceObservation | interface | VNObservation.h:101 | Face detection, landmarks, and capture-quality helpers all flow through face observations. |
@@ -43,27 +48,42 @@ Methodology note: per the audit instructions, this inventory covers Vision inter
 | VNGeneratePersonSegmentationRequest | interface | VNGeneratePersonSegmentationRequest.h:34 | Exposed as `generate_person_segmentation_in_path`. |
 | VNGeneratePersonSegmentationRequestQualityLevel | enum | VNGeneratePersonSegmentationRequest.h:23 | Wrapped by `segmentation::SegmentationQuality` and mapped onto `VNGeneratePersonSegmentationRequest.QualityLevel` in the Swift bridge. |
 | VNHomographicImageRegistrationRequest | interface | VNImageRegistrationRequest.h:52 | Exposed as `register_homographic`. |
-| VNImageRequestHandler | interface | VNRequestHandler.h:65 | Exposed as `ImageRequestHandler`, which runs `Request::recognize_text()` against a still image. |
-| VNHumanBodyPose3DObservation | interface | VNObservation.h:888 | Exposed through `HumanJoint3D` results from `detect_human_body_pose_3d`. |
+| VNHorizonObservation | interface | VNObservation.h:481 | Exposed as `HorizonObservation`, including angle + affine transform helpers. |
+| VNHumanBodyPose3DObservation | interface | VNObservation.h:888 | Exposed as `HumanBodyPose3DObservation` and `detect_human_body_pose_3d_observations`. |
+| VNHumanBodyPoseObservation | interface | VNDetectHumanBodyPoseRequest.h:103 | Exposed as `HumanBodyPoseObservation` and `detect_human_body_pose_observations_in_path`. |
+| VNHumanHandPoseObservation | interface | VNDetectHumanHandPoseRequest.h:101 | Exposed as `HumanHandPoseObservation` and `detect_human_hand_pose_observations_in_path`. |
 | VNHumanObservation | interface | VNObservation.h:729 | Exposed through `DetectedHuman`. |
 | VNImageAestheticsScoresObservation | interface | VNObservation.h:974 | Exposed through `AestheticsScores`. |
+| VNImageAlignmentObservation | interface | VNObservation.h:509 | Exposed as the dedicated `ImageAlignmentObservation` base wrapper. |
+| VNImageBasedRequest | interface | VNRequest.h:157 | Exposed as the standalone `ImageBasedRequest` base wrapper reused across request builders. |
 | VNImageHomographicAlignmentObservation | interface | VNObservation.h:532 | Exposed through `HomographicAlignment`. |
+| VNImageRegistrationRequest | interface | VNImageRegistrationRequest.h:21 | Exposed as `ImageRegistrationRequest`, alongside translational + homographic registration helpers. |
+| VNImageRequestHandler | interface | VNRequestHandler.h:65 | Exposed as `ImageRequestHandler`, which runs `Request::recognize_text()` against a still image. |
 | VNImageTranslationAlignmentObservation | interface | VNObservation.h:519 | Exposed through `TranslationalAlignment`. |
+| VNInstanceMaskObservation | interface | VNObservation.h:746 | Exposed as `InstanceMaskObservation`, including `PixelBufferObservation` bytes + instance counts. |
 | VNObservation | interface | VNObservation.h:42 | Exposed as `Observation`, carrying Vision's shared `uuid`, confidence, and optional `time_range` metadata. |
+| VNPixelBufferObservation | interface | VNObservation.h:242 | Exposed as the generic `PixelBufferObservation` wrapper used by optical-flow and mask observations. |
 | VNRecognizeAnimalsRequest | interface | VNRecognizeAnimalsRequest.h:27 | Exposed as `recognize_animals_in_path`. |
 | VNRecognizeTextRequest | interface | VNRecognizeTextRequest.h:31 | Exposed via `TextRecognizer`. |
 | VNRecognizedObjectObservation | interface | VNObservation.h:204 | Animal recognition surfaces the recognized label set + bounding box through `RecognizedAnimal`. |
+| VNRecognizedPoints3DObservation | interface | VNObservation.h:838 | Exposed as `RecognizedPoints3DObservation` and `HumanBodyPose3DObservation`. |
+| VNRecognizedPointsObservation | interface | VNObservation.h:669 | Exposed as `RecognizedPointsObservation` and the dedicated body/hand pose observation wrappers. |
 | VNRecognizedTextObservation | interface | VNObservation.h:392 | Exposed through `RecognizedText`. |
 | VNRectangleObservation | interface | VNObservation.h:267 | Exposed through `RectangleObservation`. |
 | VNRequest | interface | VNRequest.h:40 | Exposed as `Request` / `RequestKind`, including revision + background/CPU settings for the explicit OCR pipeline. |
 | VNRequestTextRecognitionLevel | enum | VNRecognizeTextRequest.h:17 | Wrapped by `recognize_text::RecognitionLevel` and mapped onto `VNRecognizeTextRequest.recognitionLevel` in the Swift bridge. |
-| VNSequenceRequestHandler | interface | VNRequestHandler.h:253 | Exposed as `SequenceRequestHandler`, which retains Vision sequence state across repeated `perform` calls. |
+| VNRequestTrackingLevel | enum | VNTrackingRequest.h:20 | Wrapped by `request_base::TrackingLevel` and mapped onto `VNTrackingRequest.trackingLevel`. |
 | VNSaliencyImageObservation | interface | VNObservation.h:546 | Exposed through `SalientRegion` / `ObjectnessRegion` result sets. |
+| VNSequenceRequestHandler | interface | VNRequestHandler.h:253 | Exposed as `SequenceRequestHandler`, which retains Vision sequence state across repeated `perform` calls. |
+| VNStatefulRequest | interface | VNStatefulRequest.h:20 | Exposed as the standalone `StatefulRequest` base wrapper. |
+| VNTargetedImageRequest | interface | VNTargetedImageRequest.h:24 | Exposed as the standalone `TargetedImageRequest` base wrapper. |
+| VNTextObservation | interface | VNObservation.h:350 | Exposed as `TextObservation`, including top-level boxes plus optional `character_boxes`. |
 | VNTrackHomographicImageRegistrationRequest | interface | VNTrackHomographicImageRegistrationRequest.h:19 | Exposed via `HomographicImageTracker`. |
 | VNTrackObjectRequest | interface | VNTrackObjectRequest.h:22 | Exposed via `ObjectTracker`. |
 | VNTrackOpticalFlowRequest | interface | VNTrackOpticalFlowRequest.h:63 | Exposed via `OpticalFlowTracker`. |
 | VNTrackRectangleRequest | interface | VNTrackRectangleRequest.h:23 | Exposed via `RectangleTracker`. |
 | VNTrackTranslationalImageRegistrationRequest | interface | VNTrackTranslationalImageRegistrationRequest.h:19 | Exposed via `TranslationalImageTracker`. |
+| VNTrackingRequest | interface | VNTrackingRequest.h:32 | Exposed as the standalone `TrackingRequest` base wrapper plus `TrackingLevel`. |
 | VNTrajectoryObservation | interface | VNObservation.h:314 | Exposed through `Trajectory` (detected/projected points, equation coefficients, confidence). |
 | VNTranslationalImageRegistrationRequest | interface | VNImageRegistrationRequest.h:31 | Exposed as `register_translational`. |
 | VNVideoProcessor | interface | VNVideoProcessor.h:75 | Exposed as `VideoProcessor`, including `VideoProcessingOptions` / `VideoCadence` for OCR over video files. |
@@ -100,16 +120,10 @@ Methodology note: per the audit instructions, this inventory covers Vision inter
 | VNBarcodeSymbologyPDF417 | const | VNTypes.h:66 | No dedicated public Rust wrapper in the crate. |
 | VNBarcodeSymbologyQR | const | VNTypes.h:67 | Referenced internally in the Swift bridge or Rust internals, but not exposed as a dedicated public Rust wrapper. |
 | VNBarcodeSymbologyUPCE | const | VNTypes.h:68 | No dedicated public Rust wrapper in the crate. |
-| VNChirality | enum | VNTypes.h:96 | No dedicated public Rust wrapper in the crate. |
 | VNCircle | interface | VNGeometry.h:199 | No dedicated public Rust wrapper in the crate. |
 | VNComputeStageMain | const | VNTypes.h:36 | No dedicated public Rust wrapper in the crate. |
 | VNComputeStagePostProcessing | const | VNTypes.h:42 | No dedicated public Rust wrapper in the crate. |
 | VNContour | interface | VNGeometry.h:256 | No dedicated public Rust wrapper in the crate. |
-| VNContoursObservation | interface | VNObservation.h:612 | Exposed through `Contour` trees; indexed convenience lookups (`contourAtIndex*`) are not modelled directly. |
-| VNCoreMLFeatureValueObservation | interface | VNObservation.h:218 | The current `VNCoreMLRequest` safe API returns classification observations only. |
-| VNCoreMLModel | interface | VNCoreMLRequest.h:22 | Referenced internally in the Swift bridge or Rust internals, but not exposed as a dedicated public Rust wrapper. |
-| VNCoreMLRequest | interface | VNCoreMLRequest.h:55 | Exposed as `coreml_classify_in_path`; the current safe API handles classification outputs only. |
-| VNDetectTextRectanglesRequest | interface | VNDetectTextRectanglesRequest.h:21 | Exposed as `detect_text_rectangles`; region boxes are surfaced today, while `characterBoxes` stays deferred. |
 | VNDetectedPoint | interface | VNDetectedPoint.h:21 | No dedicated public Rust wrapper in the crate. |
 | VNElementType | enum | VNTypes.h:80 | No dedicated public Rust wrapper in the crate. |
 | VNElementTypeSize | function | VNUtils.h:195 | No dedicated public Rust wrapper in the crate. |
@@ -121,7 +135,6 @@ Methodology note: per the audit instructions, this inventory covers Vision inter
 | VNFaceLandmarks2D | interface | VNFaceLandmarks.h:116 | No dedicated public Rust wrapper in the crate. |
 | VNFaceObservationAccepting | protocol | VNFaceObservationAccepting.h:21 | No dedicated public Rust wrapper in the crate. |
 | VNGeometryUtils | interface | VNGeometryUtils.h:24 | No dedicated public Rust wrapper in the crate. |
-| VNHorizonObservation | interface | VNObservation.h:481 | Exposed through `detect_horizon_in_path`; the horizon angle is surfaced directly, while transform helpers are deferred. |
 | VNHumanBodyPose3DObservationHeightEstimation | enum | VNObservation.h:881 | No dedicated public Rust wrapper in the crate. |
 | VNHumanBodyPose3DObservationJointNameCenterHead | const | VNTypes.h:183 | No dedicated public Rust wrapper in the crate. |
 | VNHumanBodyPose3DObservationJointNameCenterShoulder | const | VNTypes.h:182 | No dedicated public Rust wrapper in the crate. |
@@ -141,7 +154,6 @@ Methodology note: per the audit instructions, this inventory covers Vision inter
 | VNHumanBodyPose3DObservationJointNameSpine | const | VNTypes.h:181 | No dedicated public Rust wrapper in the crate. |
 | VNHumanBodyPose3DObservationJointNameTopHead | const | VNTypes.h:184 | No dedicated public Rust wrapper in the crate. |
 | VNHumanBodyPose3DObservationJointsGroupNameHead | const | VNTypes.h:193 | No dedicated public Rust wrapper in the crate. |
-| VNHumanBodyPoseObservation | interface | VNDetectHumanBodyPoseRequest.h:103 | Exposed through `DetectedBodyPose`; joint dictionaries are surfaced, while the full observation type is flattened. |
 | VNHumanBodyPoseObservationJointNameLeftAnkle | const | VNDetectHumanBodyPoseRequest.h:83 | No dedicated public Rust wrapper in the crate. |
 | VNHumanBodyPoseObservationJointNameLeftEar | const | VNDetectHumanBodyPoseRequest.h:63 | No dedicated public Rust wrapper in the crate. |
 | VNHumanBodyPoseObservationJointNameLeftElbow | const | VNDetectHumanBodyPoseRequest.h:70 | No dedicated public Rust wrapper in the crate. |
@@ -163,7 +175,6 @@ Methodology note: per the audit instructions, this inventory covers Vision inter
 | VNHumanBodyPoseObservationJointNameRoot | const | VNDetectHumanBodyPoseRequest.h:78 | No dedicated public Rust wrapper in the crate. |
 | VNHumanBodyPoseObservationJointsGroupNameFace | const | VNDetectHumanBodyPoseRequest.h:91 | No dedicated public Rust wrapper in the crate. |
 | VNHumanBodyRecognizedPoint3D | interface | VNHumanBodyRecognizedPoint3D.h:16 | No dedicated public Rust wrapper in the crate. |
-| VNHumanHandPoseObservation | interface | VNDetectHumanHandPoseRequest.h:101 | Exposed through `DetectedHandPose`; joint dictionaries are surfaced, while observation-specific extras (for example chirality) are deferred. |
 | VNHumanHandPoseObservationJointNameIndexDIP | const | VNDetectHumanHandPoseRequest.h:68 | No dedicated public Rust wrapper in the crate. |
 | VNHumanHandPoseObservationJointNameIndexMCP | const | VNDetectHumanHandPoseRequest.h:66 | No dedicated public Rust wrapper in the crate. |
 | VNHumanHandPoseObservationJointNameIndexPIP | const | VNDetectHumanHandPoseRequest.h:67 | No dedicated public Rust wrapper in the crate. |
@@ -191,8 +202,6 @@ Methodology note: per the audit instructions, this inventory covers Vision inter
 | VNHumanHandPoseObservationJointsGroupNameMiddleFinger | const | VNDetectHumanHandPoseRequest.h:92 | No dedicated public Rust wrapper in the crate. |
 | VNHumanHandPoseObservationJointsGroupNameRingFinger | const | VNDetectHumanHandPoseRequest.h:93 | No dedicated public Rust wrapper in the crate. |
 | VNHumanHandPoseObservationJointsGroupNameThumb | const | VNDetectHumanHandPoseRequest.h:90 | No dedicated public Rust wrapper in the crate. |
-| VNImageAlignmentObservation | interface | VNObservation.h:509 | Concrete translation + homography alignment observations are exposed; the abstract base observation is not. |
-| VNImageBasedRequest | interface | VNRequest.h:157 | Shared image-request plumbing is reused throughout the bridge, but there is no standalone public base-class wrapper. |
 | VNImageCropAndScaleOption | enum | VNTypes.h:19 | No dedicated public Rust wrapper in the crate. |
 | VNImageOptionCIContext | const | VNRequestHandler.h:57 | No dedicated public Rust wrapper in the crate. |
 | VNImageOptionCameraIntrinsics | const | VNRequestHandler.h:51 | No dedicated public Rust wrapper in the crate. |
@@ -202,8 +211,6 @@ Methodology note: per the audit instructions, this inventory covers Vision inter
 | VNImagePointForNormalizedPointUsingRegionOfInterest | function | VNUtils.h:63 | No dedicated public Rust wrapper in the crate. |
 | VNImageRectForNormalizedRect | function | VNUtils.h:107 | No dedicated public Rust wrapper in the crate. |
 | VNImageRectForNormalizedRectUsingRegionOfInterest | function | VNUtils.h:123 | No dedicated public Rust wrapper in the crate. |
-| VNImageRegistrationRequest | interface | VNImageRegistrationRequest.h:21 | Concrete translational + homographic registration wrappers are exposed; the abstract base class is not. |
-| VNInstanceMaskObservation | interface | VNObservation.h:746 | Mask bytes + instance counts are surfaced, while mask-generation convenience helpers are deferred. |
 | VNNormalizedFaceBoundingBoxPointForLandmarkPoint | function | VNUtils.h:169 | No dedicated public Rust wrapper in the crate. |
 | VNNormalizedIdentityRect | const | VNUtils.h:23 | No dedicated public Rust wrapper in the crate. |
 | VNNormalizedPointForImagePoint | function | VNUtils.h:77 | No dedicated public Rust wrapper in the crate. |
@@ -211,7 +218,6 @@ Methodology note: per the audit instructions, this inventory covers Vision inter
 | VNNormalizedRectForImageRect | function | VNUtils.h:137 | No dedicated public Rust wrapper in the crate. |
 | VNNormalizedRectForImageRectUsingRegionOfInterest | function | VNUtils.h:153 | No dedicated public Rust wrapper in the crate. |
 | VNNormalizedRectIsIdentityRect | function | VNUtils.h:33 | No dedicated public Rust wrapper in the crate. |
-| VNPixelBufferObservation | interface | VNObservation.h:242 | Pixel-buffer-backed results are surfaced as owned byte wrappers (`SegmentationMask`, `InstanceMask`, `OpticalFlowFrame`) rather than a generic `VNPixelBufferObservation` type. |
 | VNPoint | interface | VNGeometry.h:27 | No dedicated public Rust wrapper in the crate. |
 | VNPoint3D | interface | VNGeometry.h:93 | No dedicated public Rust wrapper in the crate. |
 | VNPointsClassification | enum | VNTypes.h:106 | No dedicated public Rust wrapper in the crate. |
@@ -219,18 +225,11 @@ Methodology note: per the audit instructions, this inventory covers Vision inter
 | VNRecognizedPoint3D | interface | VNRecognizedPoint3D.h:21 | No dedicated public Rust wrapper in the crate. |
 | VNRecognizedPoint3DGroupKeyAll | const | VNObservation.h:830 | No dedicated public Rust wrapper in the crate. |
 | VNRecognizedPointGroupKeyAll | const | VNObservation.h:660 | No dedicated public Rust wrapper in the crate. |
-| VNRecognizedPoints3DObservation | interface | VNObservation.h:838 | 3D recognized points are surfaced as flattened `HumanJoint3D` values. |
-| VNRecognizedPointsObservation | interface | VNObservation.h:669 | 2D recognized points are surfaced as flattened joint maps for body / hand / animal pose APIs. |
 | VNRecognizedText | interface | VNObservation.h:365 | No dedicated public Rust wrapper in the crate. |
 | VNRequestFaceLandmarksConstellation | enum | VNDetectFaceLandmarksRequest.h:19 | No dedicated public Rust wrapper in the crate. |
 | VNRequestProgressProviding | protocol | VNRequest.h:181 | No dedicated public Rust wrapper in the crate. |
 | VNRequestRevisionProviding | protocol | VNRequestRevisionProviding.h:15 | No dedicated public Rust wrapper in the crate. |
-| VNRequestTrackingLevel | enum | VNTrackingRequest.h:20 | No dedicated public Rust wrapper in the crate. |
-| VNStatefulRequest | interface | VNStatefulRequest.h:20 | Concrete stateful requests and tracking sessions are exposed, but there is no standalone base-class handle. |
-| VNTargetedImageRequest | interface | VNTargetedImageRequest.h:24 | Concrete targeted-image requests are covered; the abstract base class is not exposed directly. |
-| VNTextObservation | interface | VNObservation.h:350 | Exposed through `TextRect`; the top-level text boxes are surfaced while `characterBoxes` stays deferred. |
 | VNTrackOpticalFlowRequestComputationAccuracy | enum | VNTrackOpticalFlowRequest.h:19 | No dedicated public Rust wrapper in the crate. |
-| VNTrackingRequest | interface | VNTrackingRequest.h:32 | Concrete tracker types are covered; the abstract base class is not exposed directly. |
 | VNVector | interface | VNGeometry.h:109 | No dedicated public Rust wrapper in the crate. |
 | VNVideoProcessorCadence | interface | VNVideoProcessor.h:23 | No dedicated public Rust wrapper in the crate. |
 | VNVideoProcessorFrameRateCadence | interface | VNVideoProcessor.h:32 | No dedicated public Rust wrapper in the crate. |

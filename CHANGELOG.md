@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.15.2] - 2026-05-17
+
+### Added (request/observation wrapper completion)
+
+- Added explicit base request wrappers for `VNImageBasedRequest`, `VNTargetedImageRequest`, `VNStatefulRequest`, `VNTrackingRequest`, and `VNImageRegistrationRequest` (`ImageBasedRequest`, `TargetedImageRequest`, `StatefulRequest`, `TrackingRequest`, `ImageRegistrationRequest`, `TrackingLevel`).
+- Added dedicated observation wrappers for the remaining request/observation gaps, including `TextObservation`, `ContoursObservation`, `HorizonObservation`, `HumanBodyPoseObservation`, `HumanHandPoseObservation`, `HumanBodyPose3DObservation`, `RecognizedPointsObservation`, `RecognizedPoints3DObservation`, `ImageAlignmentObservation`, `PixelBufferObservation`, `InstanceMaskObservation`, and `CoreMLFeatureValueObservation`.
+- Added `TextRectanglesRequest`, `CoreMLRequest`, `CoreMLModel`, `coreml_feature_value_in_path`, and observation-returning helpers for text rectangles, pose, contours, horizon, registration, optical flow, and instance-mask workflows.
+- Added smoke test `tests/request_observations.rs` and refreshed `examples/04_v013_missing_requests.rs` to cover the new public surface.
+- Updated `COVERAGE.md` to mark every current Vision request/observation type as implemented and refreshed `COVERAGE_AUDIT.md` for the newly-wrapped request/observation interfaces.
+
 ## [0.15.1] - 2026-05-16
 
 ### Added (explicit request-processing wrappers)
