@@ -9,9 +9,9 @@
 //! OCR, object detection, face landmarks, and other on-device computer
 //! vision tasks.
 //!
-//! v0.15.3 keeps the full Apple Vision request surface, adds explicit
-//! base request/observation wrappers for SDK constants/protocols/utilities,
-//! and ships a fully-implemented audited coverage matrix plus a split Swift bridge.
+//! v0.16.0 adds a Tier-1 `async_api` module for one-shot OCR / face / barcode /
+//! segmentation requests while keeping the full audited Vision request surface
+//! and the split Swift bridge / coverage matrix introduced in v0.15.x.
 
 #![cfg_attr(docsrs, feature(doc_cfg))]
 
@@ -21,6 +21,10 @@ pub mod geometry;
 pub mod recognized_points;
 pub mod request_base;
 pub mod sdk;
+
+#[cfg(feature = "async")]
+#[cfg_attr(docsrs, doc(cfg(feature = "async")))]
+pub mod async_api;
 
 #[cfg(feature = "recognize_text")]
 #[cfg_attr(docsrs, doc(cfg(feature = "recognize_text")))]
