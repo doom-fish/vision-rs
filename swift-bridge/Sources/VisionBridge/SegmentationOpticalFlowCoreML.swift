@@ -173,8 +173,6 @@ public func vn_generate_optical_flow_in_paths(
 
 // MARK: - CoreML request (v0.12)
 
-import CoreML
-
 @frozen
 public struct VNCoreMLFeatureValueRaw {
     public var feature_name: UnsafeMutablePointer<CChar>?
@@ -235,6 +233,10 @@ internal func applyCoreMLRequestConfig(
 
 internal func copyMultiArrayValues(_ multiArray: MLMultiArray) -> [Double] {
     let count = multiArray.count
+    if #available(macOS 26.0, *), multiArray.dataType == .int8 {  // .int8 added macOS 26.0
+        let ptr = multiArray.dataPointer.bindMemory(to: Int8.self, capacity: count)
+        return (0..<count).map { Double(ptr[$0]) }
+    }
     switch multiArray.dataType {
     case .double:
         let ptr = multiArray.dataPointer.bindMemory(to: Double.self, capacity: count)
@@ -248,9 +250,6 @@ internal func copyMultiArrayValues(_ multiArray: MLMultiArray) -> [Double] {
     case .float16:
         let ptr = multiArray.dataPointer.bindMemory(to: UInt16.self, capacity: count)
         return (0..<count).map { Double(Float16(bitPattern: ptr[$0])) }
-    case .int8:
-        let ptr = multiArray.dataPointer.bindMemory(to: Int8.self, capacity: count)
-        return (0..<count).map { Double(ptr[$0]) }
     @unknown default:
         return []
     }

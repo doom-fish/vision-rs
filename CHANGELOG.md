@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.16.1] - 2026-06-16
+
+### Fixed
+
+- Added `#available(macOS 26.0, *)` guard around `MLMultiArrayDataType.int8`
+  in `copyMultiArrayValues` inside `SegmentationOpticalFlowCoreML.swift`.
+  `MLMultiArrayDataTypeInt8` is only present in the macOS 26 SDK; the guard
+  allows the bridge to compile with older SDKs (macos-15 / Xcode 16) while
+  still handling `int8` multi-arrays correctly at runtime on macOS 26+.
+
 ## [0.16.0] - 2026-05-17
 
 ### Added (Tier-1 async API)
