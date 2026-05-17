@@ -1,6 +1,6 @@
 [package]
 name = "apple-vision"
-version = "0.15.3"
+version = "0.16.0"
 edition = "2021"
 license = "MIT OR Apache-2.0"
 homepage = "https://github.com/doom-fish/vision-rs"
@@ -43,6 +43,7 @@ default = [
     "classify", "rectangles", "horizon", "feature_print", "humans",
     "aesthetics", "segmentation", "optical_flow", "coreml", "tracking",
 ]
+async = []
 
 # Per-request-type feature flags.
 recognize_text = []
@@ -67,9 +68,11 @@ tracking = ["recognize_text", "rectangles"]
 
 [dependencies]
 apple-cf = { version = ">=0.4.0, <0.6", default-features = false, features = ["cv", "iosurface"] }
+doom-fish-utils = { path = "../doom-fish-utils", version = "0.1" }
 libc = "0.2.186"
 
 [dev-dependencies]
+pollster = "0.3"
 regex-lite = "0.1"
 
 [package.metadata.docs.rs]
@@ -100,6 +103,22 @@ required-features = ["tracking"]
 [[example]]
 name = "06_request_processing"
 required-features = ["recognize_text"]
+
+[[example]]
+name = "07_async_recognize_text"
+required-features = ["async", "recognize_text"]
+
+[[example]]
+name = "08_async_detect_faces"
+required-features = ["async", "detect_faces"]
+
+[[example]]
+name = "09_async_detect_barcodes"
+required-features = ["async", "detect_barcodes"]
+
+[[example]]
+name = "10_async_segmentation"
+required-features = ["async", "segmentation"]
 
 [profile.release]
 debug = "full"

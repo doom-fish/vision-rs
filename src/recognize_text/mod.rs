@@ -20,7 +20,7 @@ pub enum RecognitionLevel {
 }
 
 impl RecognitionLevel {
-    const fn as_raw(self) -> i32 {
+    pub(crate) const fn as_raw(self) -> i32 {
         match self {
             Self::Fast => 0,
             Self::Accurate => 1,

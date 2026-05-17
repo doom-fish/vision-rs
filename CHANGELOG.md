@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.16.0] - 2026-05-17
+
+### Added (Tier-1 async API)
+
+- Added `async_api` behind the new `async` feature, with executor-agnostic `Future` wrappers for text recognition, face detection, barcode detection, and person segmentation.
+- Added DispatchQueue-backed Swift bridge thunks plus async result-container FFI declarations for the four one-shot Tier-1 Vision operations.
+- Added async smoke examples `07_async_recognize_text` through `10_async_segmentation` and `tests/async_api_tests.rs`.
+- Added the shared `doom-fish-utils` completion dependency plus `pollster` for async examples/tests.
+
 ## [0.15.3] - 2026-05-17
 
 ### Added (audit-gap completion)
