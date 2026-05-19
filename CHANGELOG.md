@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.16.5] - 2026-05-19
+
+- Bump MSRV from 1.70 to 1.76 to match fleet baseline.
+
 ## [0.16.4] - 2026-05-18
 
 - Widen doom-fish-utils version bound to `<0.3` so 0.2.x resolves.
