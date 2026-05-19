@@ -1,6 +1,6 @@
 [package]
 name = "apple-vision"
-version = "0.16.4"
+version = "0.16.5"
 edition = "2021"
 license = "MIT OR Apache-2.0"
 homepage = "https://github.com/doom-fish/vision-rs"
@@ -9,7 +9,7 @@ description = "Safe Rust bindings for Apple's Vision framework — OCR, object d
 authors = ["Per Johansson <per@doom.fish>"]
 keywords = ["vision", "ocr", "macos", "computer-vision", "apple"]
 categories = ["api-bindings", "os::macos-apis", "computer-vision"]
-rust-version = "1.70"
+rust-version = "1.76"
 readme = "README.md"
 build = "build.rs"
 include = [
