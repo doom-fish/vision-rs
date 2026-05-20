@@ -1,4 +1,4 @@
-# apple-vision coverage audit (vs MacOSX26.2.sdk)
+# apple-vision coverage audit (vs MacOSX26.5.sdk)
 
 SDK_PUBLIC_SYMBOLS: 249
 VERIFIED: 222
@@ -6,7 +6,7 @@ GAPS: 0
 EXEMPT: 27
 COVERAGE_PCT: 89.16%
 
-Methodology note: per the audit instructions, this inventory covers Vision interfaces, protocols, enum/struct typedefs, exported constants, and top-level C functions. Alias-only typedefs are not counted separately. A symbol is **VERIFIED** only when `apple-vision` exposes a dedicated public Rust surface for it; symbols used only inside the Swift bridge or flattened into crate-specific data structures remain in **GAPS**.
+Methodology note: per the audit instructions, this inventory covers Vision interfaces, protocols, enum/struct typedefs, exported constants, and top-level C functions. Alias-only typedefs are not counted separately. A symbol is **VERIFIED** only when `apple-vision` exposes a dedicated public Rust surface for it; symbols used only inside the Swift bridge or flattened into crate-specific data structures remain in **GAPS**. Phase 32 also refreshes the Tier-1 async notes for `VNCoreMLRequest`, `VNDetectHumanBodyPose3DRequest`, and `VNDetectTrajectoriesRequest`.
 
 ## 🟢 VERIFIED
 | Symbol | Kind | Header | Wrapped by |
@@ -20,7 +20,7 @@ Methodology note: per the audit instructions, this inventory covers Vision inter
 | VNContoursObservation | interface | VNObservation.h:612 | Exposed as `ContoursObservation`, including top-level contour trees plus contour counts. |
 | VNCoreMLFeatureValueObservation | interface | VNObservation.h:218 | Exposed as `CoreMLFeatureValueObservation` via `CoreMLRequest::feature_value` / `coreml_feature_value_in_path`. |
 | VNCoreMLModel | interface | VNCoreMLRequest.h:22 | Exposed as the dedicated `CoreMLModel` wrapper used by `CoreMLRequest`. |
-| VNCoreMLRequest | interface | VNCoreMLRequest.h:55 | Exposed as `CoreMLRequest`, `coreml_classify_in_path`, and `coreml_feature_value_in_path`. |
+| VNCoreMLRequest | interface | VNCoreMLRequest.h:55 | Exposed as `CoreMLRequest`, `coreml_classify_in_path`, `coreml_feature_value_in_path`, and `AsyncCoreMLRequest::{classify_in_path, feature_value_in_path}`. |
 | VNDetectAnimalBodyPoseRequest | interface | VNDetectAnimalBodyPoseRequest.h:19 | Exposed as `detect_animal_body_pose` (macOS 14+). |
 | VNDetectBarcodesRequest | interface | VNDetectBarcodesRequest.h:21 | Exposed as `detect_barcodes_in_path`. |
 | VNDetectContoursRequest | interface | VNDetectContoursRequest.h:21 | Exposed as `detect_contours_in_path`. |
@@ -29,13 +29,13 @@ Methodology note: per the audit instructions, this inventory covers Vision inter
 | VNDetectFaceLandmarksRequest | interface | VNDetectFaceLandmarksRequest.h:33 | Exposed as `detect_face_landmarks_in_path`. |
 | VNDetectFaceRectanglesRequest | interface | VNDetectFaceRectanglesRequest.h:21 | Exposed via `FaceDetector`. |
 | VNDetectHorizonRequest | interface | VNDetectHorizonRequest.h:21 | Exposed as `detect_horizon_in_path`. |
-| VNDetectHumanBodyPose3DRequest | interface | VNDetectHumanBodyPose3DRequest.h:24 | Exposed as `detect_human_body_pose_3d` (macOS 14+). |
+| VNDetectHumanBodyPose3DRequest | interface | VNDetectHumanBodyPose3DRequest.h:24 | Exposed as `detect_human_body_pose_3d` plus `AsyncDetectHumanBodyPose3D::detect_in_path` (macOS 14+). |
 | VNDetectHumanBodyPoseRequest | interface | VNDetectHumanBodyPoseRequest.h:147 | Exposed as `detect_human_body_pose_in_path`. |
 | VNDetectHumanHandPoseRequest | interface | VNDetectHumanHandPoseRequest.h:149 | Exposed as `detect_human_hand_pose_in_path`. |
 | VNDetectHumanRectanglesRequest | interface | VNDetectHumanRectanglesRequest.h:24 | Exposed as `detect_human_rectangles_in_path`. |
 | VNDetectRectanglesRequest | interface | VNDetectRectanglesRequest.h:21 | Exposed as `detect_rectangles_in_path`. |
 | VNDetectTextRectanglesRequest | interface | VNDetectTextRectanglesRequest.h:21 | Exposed as `TextRectanglesRequest`, `detect_text_rectangles`, and `detect_text_observations`. |
-| VNDetectTrajectoriesRequest | interface | VNDetectTrajectoriesRequest.h:21 | Exposed as `detect_trajectories`. |
+| VNDetectTrajectoriesRequest | interface | VNDetectTrajectoriesRequest.h:21 | Exposed as `detect_trajectories` plus `AsyncDetectTrajectories::detect_in_path`. |
 | VNDetectedObjectObservation | interface | VNObservation.h:71 | Object tracking surfaces updated bounding boxes + confidences across frames. |
 | VNFaceObservation | interface | VNObservation.h:101 | Face detection, landmarks, and capture-quality helpers all flow through face observations. |
 | VNFeaturePrintObservation | interface | VNObservation.h:559 | Exposed through `FeaturePrint`, including element metadata + distance computation. |

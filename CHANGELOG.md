@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.16.7] - 2026-05-20
+
+- Phase 32 completeness + async sweep.
+- Added executor-agnostic async wrappers for `VNCoreMLRequest`, `VNDetectHumanBodyPose3DRequest`, and `VNDetectTrajectoriesRequest`.
+- Refreshed the coverage docs against `MacOSX26.5.sdk`.
+
 ## [0.16.6] - 2026-05-20
 
 - Widen `doom-fish-utils` dependency bound to `<0.4` so the 0.3.x SPSC-ring release resolves cleanly. No source changes.

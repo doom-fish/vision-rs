@@ -32,7 +32,7 @@ use std::{
     ffi::{c_void, CString},
     future::Future,
     panic::AssertUnwindSafe,
-    path::Path,
+    path::{Path, PathBuf},
     pin::Pin,
     task::{Context, Poll},
 };
@@ -42,14 +42,20 @@ use doom_fish_utils::panic_safe::log_callback_panic;
 
 use crate::{error::VisionError, ffi};
 
+#[cfg(feature = "coreml")]
+use crate::classify::Classification;
+#[cfg(feature = "coreml")]
+use crate::coreml::{CoreMLFeatureValueObservation, CoreMLRequest};
 #[cfg(feature = "detect_barcodes")]
 use crate::detect_barcodes::DetectedBarcode;
 #[cfg(feature = "detect_faces")]
 use crate::detect_faces::DetectedFace;
+use crate::human_body_pose_3d::HumanBodyPose3DObservation;
 #[cfg(feature = "recognize_text")]
 use crate::recognize_text::{RecognitionLevel, RecognizedText};
 #[cfg(feature = "segmentation")]
 use crate::segmentation::{SegmentationMask, SegmentationQuality};
+use crate::trajectories::Trajectory;
 
 enum FutureState<T> {
     Ready(Option<Result<T, VisionError>>),
@@ -90,6 +96,201 @@ fn path_to_cstring(path: impl AsRef<Path>) -> Result<CString, VisionError> {
         .ok_or_else(|| VisionError::InvalidArgument("non-UTF-8 path".into()))?;
     CString::new(path_str)
         .map_err(|error| VisionError::InvalidArgument(format!("path NUL byte: {error}")))
+}
+
+struct WorkerFuture<T> {
+    inner: AsyncCompletionFuture<Result<T, VisionError>>,
+}
+
+impl<T> std::fmt::Debug for WorkerFuture<T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("WorkerFuture").finish_non_exhaustive()
+    }
+}
+
+impl<T> Future for WorkerFuture<T> {
+    type Output = Result<T, VisionError>;
+
+    fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+        Pin::new(&mut self.inner).poll(cx).map(|result| {
+            result.unwrap_or_else(|message| {
+                Err(VisionError::Unknown {
+                    code: ffi::status::UNKNOWN,
+                    message,
+                })
+            })
+        })
+    }
+}
+
+fn run_sync_on_worker<T, F>(work: F) -> WorkerFuture<T>
+where
+    T: Send + 'static,
+    F: FnOnce() -> Result<T, VisionError> + Send + 'static,
+{
+    let (future, ctx) = AsyncCompletion::<Result<T, VisionError>>::create();
+    let ctx = ctx as usize;
+    std::thread::spawn(move || unsafe {
+        AsyncCompletion::complete_ok(ctx as *mut c_void, work());
+    });
+    WorkerFuture { inner: future }
+}
+
+#[cfg(feature = "coreml")]
+pub struct CoreMLClassifyFuture {
+    inner: WorkerFuture<Vec<Classification>>,
+}
+
+#[cfg(feature = "coreml")]
+impl std::fmt::Debug for CoreMLClassifyFuture {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("CoreMLClassifyFuture")
+            .finish_non_exhaustive()
+    }
+}
+
+#[cfg(feature = "coreml")]
+impl Future for CoreMLClassifyFuture {
+    type Output = Result<Vec<Classification>, VisionError>;
+
+    fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+        Pin::new(&mut self.inner).poll(cx)
+    }
+}
+
+#[cfg(feature = "coreml")]
+pub struct CoreMLFeatureValueFuture {
+    inner: WorkerFuture<Option<CoreMLFeatureValueObservation>>,
+}
+
+#[cfg(feature = "coreml")]
+impl std::fmt::Debug for CoreMLFeatureValueFuture {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("CoreMLFeatureValueFuture")
+            .finish_non_exhaustive()
+    }
+}
+
+#[cfg(feature = "coreml")]
+impl Future for CoreMLFeatureValueFuture {
+    type Output = Result<Option<CoreMLFeatureValueObservation>, VisionError>;
+
+    fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+        Pin::new(&mut self.inner).poll(cx)
+    }
+}
+
+#[cfg(feature = "coreml")]
+#[derive(Debug, Clone)]
+pub struct AsyncCoreMLRequest {
+    request: CoreMLRequest,
+}
+
+#[cfg(feature = "coreml")]
+impl AsyncCoreMLRequest {
+    #[must_use]
+    pub const fn new(request: CoreMLRequest) -> Self {
+        Self { request }
+    }
+
+    #[must_use]
+    pub fn classify_in_path(&self, path: impl AsRef<Path>) -> CoreMLClassifyFuture {
+        let request = self.request.clone();
+        let path = path.as_ref().to_path_buf();
+        CoreMLClassifyFuture {
+            inner: run_sync_on_worker(move || request.classify(path.as_path())),
+        }
+    }
+
+    #[must_use]
+    pub fn feature_value_in_path(&self, path: impl AsRef<Path>) -> CoreMLFeatureValueFuture {
+        let request = self.request.clone();
+        let path = path.as_ref().to_path_buf();
+        CoreMLFeatureValueFuture {
+            inner: run_sync_on_worker(move || request.feature_value(path.as_path())),
+        }
+    }
+}
+
+pub struct DetectHumanBodyPose3DFuture {
+    inner: WorkerFuture<Vec<HumanBodyPose3DObservation>>,
+}
+
+impl std::fmt::Debug for DetectHumanBodyPose3DFuture {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("DetectHumanBodyPose3DFuture")
+            .finish_non_exhaustive()
+    }
+}
+
+impl Future for DetectHumanBodyPose3DFuture {
+    type Output = Result<Vec<HumanBodyPose3DObservation>, VisionError>;
+
+    fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+        Pin::new(&mut self.inner).poll(cx)
+    }
+}
+
+#[derive(Debug, Clone, Copy, Default)]
+pub struct AsyncDetectHumanBodyPose3D;
+
+impl AsyncDetectHumanBodyPose3D {
+    #[must_use]
+    pub const fn new() -> Self {
+        Self
+    }
+
+    #[must_use]
+    pub fn detect_in_path(&self, path: impl AsRef<Path>) -> DetectHumanBodyPose3DFuture {
+        let path = path.as_ref().to_path_buf();
+        DetectHumanBodyPose3DFuture {
+            inner: run_sync_on_worker(move || {
+                crate::human_body_pose_3d::detect_human_body_pose_3d_observations(path.as_path())
+            }),
+        }
+    }
+}
+
+pub struct DetectTrajectoriesFuture {
+    inner: WorkerFuture<Vec<Trajectory>>,
+}
+
+impl std::fmt::Debug for DetectTrajectoriesFuture {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("DetectTrajectoriesFuture")
+            .finish_non_exhaustive()
+    }
+}
+
+impl Future for DetectTrajectoriesFuture {
+    type Output = Result<Vec<Trajectory>, VisionError>;
+
+    fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+        Pin::new(&mut self.inner).poll(cx)
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct AsyncDetectTrajectories {
+    trajectory_length: usize,
+}
+
+impl AsyncDetectTrajectories {
+    #[must_use]
+    pub const fn new(trajectory_length: usize) -> Self {
+        Self { trajectory_length }
+    }
+
+    #[must_use]
+    pub fn detect_in_path(&self, path: impl AsRef<Path>) -> DetectTrajectoriesFuture {
+        let path: PathBuf = path.as_ref().to_path_buf();
+        let trajectory_length = self.trajectory_length;
+        DetectTrajectoriesFuture {
+            inner: run_sync_on_worker(move || {
+                crate::trajectories::detect_trajectories(path.as_path(), trajectory_length)
+            }),
+        }
+    }
 }
 
 // ============================================================================
