@@ -1,6 +1,8 @@
 # Vision SDK coverage audit
 
-Audited against the current macOS Vision.framework headers from the active Xcode SDK and the crate's `src/` + `swift-bridge/` sources.
+Audited against `MacOSX26.5.sdk` (Xcode 26.5) plus the crate's `src/` + `swift-bridge/` sources.
+
+Phase 32 also refreshes the Tier-1 async notes for `VNCoreMLRequest`, `VNDetectHumanBodyPose3DRequest`, and `VNDetectTrajectoriesRequest`.
 
 Legend:
 
@@ -15,7 +17,7 @@ Legend:
 | VNAnimalDetectionRequest | ⏭️ skipped | Not present in the current macOS SDK; animal support is exposed through `VNRecognizeAnimalsRequest`. |
 | VNCalculateImageAestheticsScoresRequest | ✅ implemented | Exposed as `calculate_aesthetics_scores_in_path`; this is the current SDK spelling for image-aesthetics scoring. |
 | VNClassifyImageRequest | ✅ implemented | Exposed as `classify_image_in_path`. |
-| VNCoreMLRequest | ✅ implemented | Exposed as `CoreMLRequest`, `coreml_classify_in_path`, and `coreml_feature_value_in_path`. |
+| VNCoreMLRequest | ✅ implemented | Exposed as `CoreMLRequest`, `coreml_classify_in_path`, `coreml_feature_value_in_path`, and the async `AsyncCoreMLRequest::{classify_in_path, feature_value_in_path}` wrappers. |
 | VNDetectAnimalBodyPoseRequest | ✅ implemented | Exposed as `detect_animal_body_pose` (macOS 14+). |
 | VNDetectBarcodesRequest | ✅ implemented | Exposed as `detect_barcodes_in_path`. |
 | VNDetectContoursRequest | ✅ implemented | Exposed as `detect_contours_in_path`. |
@@ -24,14 +26,14 @@ Legend:
 | VNDetectFaceLandmarksRequest | ✅ implemented | Exposed as `detect_face_landmarks_in_path`. |
 | VNDetectFaceRectanglesRequest | ✅ implemented | Exposed via `FaceDetector`. |
 | VNDetectHorizonRequest | ✅ implemented | Exposed as `detect_horizon_in_path`. |
-| VNDetectHumanBodyPose3DRequest | ✅ implemented | Exposed as `detect_human_body_pose_3d` (macOS 14+). |
+| VNDetectHumanBodyPose3DRequest | ✅ implemented | Exposed as `detect_human_body_pose_3d` plus `AsyncDetectHumanBodyPose3D::detect_in_path` (macOS 14+). |
 | VNDetectHumanBodyPoseRequest | ✅ implemented | Exposed as `detect_human_body_pose_in_path`. |
 | VNDetectHumanHandPoseRequest | ✅ implemented | Exposed as `detect_human_hand_pose_in_path`. |
 | VNDetectHumanRectanglesRequest | ✅ implemented | Exposed as `detect_human_rectangles_in_path`. |
 | VNDetectImageAestheticsScoresRequest | ⏭️ skipped | Current macOS SDK uses `VNCalculateImageAestheticsScoresRequest` instead. |
 | VNDetectRectanglesRequest | ✅ implemented | Exposed as `detect_rectangles_in_path`. |
 | VNDetectTextRectanglesRequest | ✅ implemented | Exposed as `TextRectanglesRequest`, `detect_text_rectangles`, and `detect_text_observations`, including `character_boxes`. |
-| VNDetectTrajectoriesRequest | ✅ implemented | Exposed as `detect_trajectories`. |
+| VNDetectTrajectoriesRequest | ✅ implemented | Exposed as `detect_trajectories` plus `AsyncDetectTrajectories::detect_in_path`. |
 | VNGenerateAttentionBasedSaliencyImageRequest | ✅ implemented | Exposed as `attention_saliency_in_path`. |
 | VNGenerateForegroundInstanceMaskRequest | ✅ implemented | Exposed as `generate_foreground_instance_mask_in_path`. |
 | VNGenerateImageFeaturePrintRequest | ✅ implemented | Exposed as `generate_image_feature_print_in_path`. |
