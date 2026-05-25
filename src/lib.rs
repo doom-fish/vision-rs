@@ -228,7 +228,8 @@ pub use aesthetics::{
 pub use segmentation::{
     generate_foreground_instance_mask_in_path,
     generate_foreground_instance_mask_observation_in_path, generate_person_segmentation_in_path,
-    InstanceMask, InstanceMaskObservation, SegmentationMask, SegmentationQuality,
+    generate_scaled_foreground_mask_in_path, InstanceMask, InstanceMaskObservation,
+    SegmentationMask, SegmentationQuality,
 };
 
 #[cfg(feature = "optical_flow")]
@@ -388,7 +389,8 @@ pub mod prelude {
     pub use crate::segmentation::{
         generate_foreground_instance_mask_in_path,
         generate_foreground_instance_mask_observation_in_path,
-        generate_person_segmentation_in_path, InstanceMask, InstanceMaskObservation,
+        generate_person_segmentation_in_path, generate_scaled_foreground_mask_in_path,
+        InstanceMask, InstanceMaskObservation,
         SegmentationMask, SegmentationQuality,
     };
     pub use crate::text_rectangles::{
