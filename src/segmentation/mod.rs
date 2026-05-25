@@ -180,6 +180,63 @@ pub fn generate_foreground_instance_mask_in_path(
     }))
 }
 
+/// Generate a scaled, unioned foreground mask for the image at `path`
+/// (macOS 14+).
+///
+/// Calls `VNGenerateForegroundInstanceMaskRequest`, then invokes
+/// `-[VNInstanceMaskObservation generateScaledMaskForImageForInstances:fromRequestHandler:error:]`
+/// with `allInstances`. The returned mask is a single-channel 8-bit
+/// alpha image at the source image's dimensions (NOT the inference
+/// resolution). `0` = background, `255` = foreground, with anti-aliased
+/// edges produced by Apple's internal upsampler.
+///
+/// This is the API behind Finder's "Remove Background" Quick Action,
+/// and is the right choice for ~95 % of foreground-mask use cases.
+/// Use [`generate_foreground_instance_mask_in_path`] only if you need
+/// the raw per-instance integer-label mask at inference resolution.
+///
+/// Returns `Ok(None)` when no foreground subject was detected.
+///
+/// # Errors
+///
+/// Returns [`VisionError::ImageLoadFailed`] / [`VisionError::RequestFailed`].
+pub fn generate_scaled_foreground_mask_in_path(
+    path: impl AsRef<Path>,
+) -> Result<Option<SegmentationMask>, VisionError> {
+    let path_str = path
+        .as_ref()
+        .to_str()
+        .ok_or_else(|| VisionError::InvalidArgument("non-UTF-8 path".into()))?;
+    let path_c = CString::new(path_str)
+        .map_err(|e| VisionError::InvalidArgument(format!("path NUL byte: {e}")))?;
+
+    let mut raw = ffi::SegmentationMaskRaw {
+        width: 0,
+        height: 0,
+        bytes_per_row: 0,
+        bytes: ptr::null_mut(),
+    };
+    let mut has_value = false;
+    let mut err_msg: *mut c_char = ptr::null_mut();
+    // SAFETY: all pointer arguments are valid stack locations or bridge-owned handles; strings are valid C strings for the duration of the call.
+    let status = unsafe {
+        ffi::vn_generate_scaled_foreground_mask_in_path(
+            path_c.as_ptr(),
+            &mut raw,
+            &mut has_value,
+            &mut err_msg,
+        )
+    };
+    if status != ffi::status::OK {
+        // SAFETY: the error pointer is either null or a bridge-allocated C string; `from_swift` frees it.
+        return Err(unsafe { from_swift(status, err_msg) });
+    }
+    if !has_value || raw.bytes.is_null() {
+        return Ok(None);
+    }
+    Ok(Some(take_raw(&mut raw)))
+}
+
 /// Generate a dedicated `VNInstanceMaskObservation` wrapper for the image at
 /// `path`.
 ///

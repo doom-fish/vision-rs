@@ -486,6 +486,13 @@ extern "C" {
         out_error_message: *mut *mut c_char,
     ) -> i32;
 
+    pub fn vn_generate_scaled_foreground_mask_in_path(
+        path: *const c_char,
+        out_mask: *mut SegmentationMaskRaw,
+        out_has_value: *mut bool,
+        out_error_message: *mut *mut c_char,
+    ) -> i32;
+
     pub fn vn_segmentation_mask_free(mask: *mut SegmentationMaskRaw);
 
     pub fn vn_generate_optical_flow_in_paths(
