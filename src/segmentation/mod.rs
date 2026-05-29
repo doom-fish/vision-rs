@@ -264,3 +264,28 @@ fn take_raw(raw: &mut ffi::SegmentationMaskRaw) -> SegmentationMask {
         bytes,
     }
 }
+
+#[doc(hidden)]
+#[must_use]
+/// Test helper: run the bridge's `OneComponent32Float` → 8-bit mask
+/// normalisation (`scaledMaskToOne8`) over `floats` (row-major, length
+/// `width * height`, values in `0.0..=1.0`) without needing the Vision
+/// segmentation model to detect a subject. Not part of the stable API.
+pub fn _test_helper_scaled_mask_to_one8(floats: &[f32], width: usize, height: usize) -> SegmentationMask {
+    assert_eq!(floats.len(), width * height, "floats must be width * height");
+    let w = i32::try_from(width).expect("width fits in i32");
+    let h = i32::try_from(height).expect("height fits in i32");
+    let mut raw = ffi::SegmentationMaskRaw {
+        width: 0,
+        height: 0,
+        bytes_per_row: 0,
+        bytes: ptr::null_mut(),
+    };
+    // SAFETY: `floats` is valid for `width * height` reads; `raw` is a valid
+    // out-pointer the bridge fills with a freshly allocated 8-bit mask.
+    let status = unsafe {
+        ffi::vn_test_helper_scaled_mask_to_one8(floats.as_ptr(), w, h, &mut raw)
+    };
+    assert_eq!(status, ffi::status::OK, "scaled mask helper failed: {status}");
+    take_raw(&mut raw)
+}
