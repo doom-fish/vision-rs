@@ -15,7 +15,6 @@ let package = Package(
     targets: [
         .target(
             name: "VisionBridge",
-            path: "Sources/VisionBridge",
-            publicHeadersPath: "include")
+            path: "Sources/VisionBridge")
     ]
 )

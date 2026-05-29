@@ -863,3 +863,101 @@ pub mod status {
 const _: () = {
     let _ = core::mem::size_of::<*mut c_void>();
 };
+
+// MARK: - ABI Layout Assertions
+//
+// Every `#[repr(C)]` struct above crosses the Rust <-> Swift `@_cdecl` FFI
+// boundary (by value, via out-params, or through packed arrays). Their Swift
+// counterparts live in `swift-bridge/Sources/VisionBridge/*.swift`. If a field
+// type, field order, or padding ever drifts on either side, the marshalled data
+// silently corrupts at runtime.
+//
+// These compile-time assertions pin the exact size and alignment of each struct
+// so accidental layout changes fail `cargo build` immediately. The crate's MSRV
+// is 1.76, so `offset_of!` (stabilised in 1.77) is unavailable; size + alignment
+// are used instead. `verify_ffi_layout` re-checks the same invariants at runtime
+// and is exercised by `tests/ffi_layout_tests.rs`.
+mod layout_asserts {
+    #[allow(clippy::wildcard_imports)]
+    use super::*;
+    use core::mem::{align_of, size_of};
+
+    macro_rules! assert_layout {
+        ($t:ty, $size:expr, $align:expr) => {
+            const _: () = assert!(size_of::<$t>() == $size);
+            const _: () = assert!(align_of::<$t>() == $align);
+        };
+    }
+
+    assert_layout!(RecognizedTextRaw, 48, 8);
+    assert_layout!(RequestObservationRaw, 72, 8);
+    assert_layout!(DetectedFaceRaw, 48, 8);
+    assert_layout!(DetectedBarcodeRaw, 56, 8);
+    assert_layout!(SaliencyRegionRaw, 40, 8);
+    assert_layout!(FaceLandmarksRaw, 240, 8);
+    assert_layout!(PoseObservationRaw, 80, 8);
+    assert_layout!(ContourRaw, 40, 8);
+    assert_layout!(RecognizedAnimalRaw, 48, 8);
+    assert_layout!(ClassificationRaw, 16, 8);
+    assert_layout!(RectangleObservationRaw, 104, 8);
+    assert_layout!(FeaturePrintRaw, 24, 8);
+    assert_layout!(HumanObservationRaw, 40, 8);
+    assert_layout!(AestheticsScoresRaw, 8, 4);
+    assert_layout!(FaceQualityRaw, 48, 8);
+    assert_layout!(SegmentationMaskRaw, 32, 8);
+    assert_layout!(AsyncArrayResultRaw, 16, 8);
+    assert_layout!(AsyncSegResultRaw, 32, 8);
+    assert_layout!(CoreMLFeatureValueRaw, 80, 8);
+    assert_layout!(AnimalJointRaw, 32, 8);
+    assert_layout!(HumanJoint3DRaw, 48, 8);
+    assert_layout!(SimpleRectRaw, 40, 8);
+    assert_layout!(TextObservationRaw, 56, 8);
+    assert_layout!(TrajectoryRaw, 64, 8);
+    assert_layout!(TranslationalAlignmentRaw, 16, 8);
+    assert_layout!(HomographicAlignmentRaw, 40, 4);
+}
+
+/// Runtime mirror of the compile-time ABI layout assertions for every
+/// `#[repr(C)]` FFI struct shared with the Swift bridge.
+///
+/// Returns `true` only if the size and alignment of all boundary-crossing
+/// structs match the values pinned at compile time. A `false` return means the
+/// Rust layout drifted from what the Swift side expects, i.e. a real ABI bug.
+/// Exercised by `tests/ffi_layout_tests.rs`.
+#[must_use]
+pub const fn verify_ffi_layout() -> bool {
+    use core::mem::{align_of, size_of};
+
+    macro_rules! check {
+        ($t:ty, $size:expr, $align:expr) => {
+            size_of::<$t>() == $size && align_of::<$t>() == $align
+        };
+    }
+
+    check!(RecognizedTextRaw, 48, 8)
+        && check!(RequestObservationRaw, 72, 8)
+        && check!(DetectedFaceRaw, 48, 8)
+        && check!(DetectedBarcodeRaw, 56, 8)
+        && check!(SaliencyRegionRaw, 40, 8)
+        && check!(FaceLandmarksRaw, 240, 8)
+        && check!(PoseObservationRaw, 80, 8)
+        && check!(ContourRaw, 40, 8)
+        && check!(RecognizedAnimalRaw, 48, 8)
+        && check!(ClassificationRaw, 16, 8)
+        && check!(RectangleObservationRaw, 104, 8)
+        && check!(FeaturePrintRaw, 24, 8)
+        && check!(HumanObservationRaw, 40, 8)
+        && check!(AestheticsScoresRaw, 8, 4)
+        && check!(FaceQualityRaw, 48, 8)
+        && check!(SegmentationMaskRaw, 32, 8)
+        && check!(AsyncArrayResultRaw, 16, 8)
+        && check!(AsyncSegResultRaw, 32, 8)
+        && check!(CoreMLFeatureValueRaw, 80, 8)
+        && check!(AnimalJointRaw, 32, 8)
+        && check!(HumanJoint3DRaw, 48, 8)
+        && check!(SimpleRectRaw, 40, 8)
+        && check!(TextObservationRaw, 56, 8)
+        && check!(TrajectoryRaw, 64, 8)
+        && check!(TranslationalAlignmentRaw, 16, 8)
+        && check!(HomographicAlignmentRaw, 40, 4)
+}
