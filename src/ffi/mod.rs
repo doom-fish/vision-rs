@@ -589,6 +589,13 @@ extern "C" {
         output_path: *const c_char,
     ) -> i32;
 
+    pub fn vn_test_helper_scaled_mask_to_one8(
+        floats: *const f32,
+        width: i32,
+        height: i32,
+        out_mask: *mut SegmentationMaskRaw,
+    ) -> i32;
+
     pub fn vn_test_helper_render_text_video(
         first_text: *const c_char,
         second_text: *const c_char,
