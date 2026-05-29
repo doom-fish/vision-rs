@@ -8,7 +8,7 @@
 //! foreground). For instance masks, pixel values index into a list
 //! of detected instances (`1..=instance_count`).
 
-use core::ffi::c_char;
+use core::ffi::{c_char, c_void};
 use core::ptr;
 use std::ffi::CString;
 use std::path::Path;
@@ -210,20 +210,19 @@ pub fn generate_scaled_foreground_mask_in_path(
     let path_c = CString::new(path_str)
         .map_err(|e| VisionError::InvalidArgument(format!("path NUL byte: {e}")))?;
 
-    let mut raw = ffi::SegmentationMaskRaw {
-        width: 0,
-        height: 0,
-        bytes_per_row: 0,
-        bytes: ptr::null_mut(),
-    };
     let mut has_value = false;
+    let mut width: i32 = 0;
+    let mut height: i32 = 0;
+    let mut handle: *mut c_void = ptr::null_mut();
     let mut err_msg: *mut c_char = ptr::null_mut();
-    // SAFETY: all pointer arguments are valid stack locations or bridge-owned handles; strings are valid C strings for the duration of the call.
+    // SAFETY: all pointer arguments are valid stack locations; the path is a valid C string for the duration of the call.
     let status = unsafe {
-        ffi::vn_generate_scaled_foreground_mask_in_path(
+        ffi::vn_scaled_foreground_mask_begin(
             path_c.as_ptr(),
-            &mut raw,
             &mut has_value,
+            &mut width,
+            &mut height,
+            &mut handle,
             &mut err_msg,
         )
     };
@@ -231,10 +230,26 @@ pub fn generate_scaled_foreground_mask_in_path(
         // SAFETY: the error pointer is either null or a bridge-allocated C string; `from_swift` frees it.
         return Err(unsafe { from_swift(status, err_msg) });
     }
-    if !has_value || raw.bytes.is_null() {
+    if !has_value || handle.is_null() {
         return Ok(None);
     }
-    Ok(Some(take_raw(&mut raw)))
+
+    let width = usize::try_from(width).unwrap_or(0);
+    let height = usize::try_from(height).unwrap_or(0);
+    let len = width.saturating_mul(height);
+    // Allocate the destination once and let the bridge convert/copy the mask
+    // directly into it — a single copy, no intermediate Swift allocation.
+    let mut bytes = vec![0u8; len];
+    // SAFETY: `handle` is a non-null buffer retained by `begin`; `bytes` is valid
+    // for `len` writes. `finish` consumes the handle (releases the buffer) exactly once.
+    unsafe { ffi::vn_scaled_foreground_mask_finish(handle, bytes.as_mut_ptr(), len) };
+
+    Ok(Some(SegmentationMask {
+        width,
+        height,
+        bytes_per_row: width,
+        bytes,
+    }))
 }
 
 /// Generate a dedicated `VNInstanceMaskObservation` wrapper for the image at
@@ -268,24 +283,25 @@ fn take_raw(raw: &mut ffi::SegmentationMaskRaw) -> SegmentationMask {
 #[doc(hidden)]
 #[must_use]
 /// Test helper: run the bridge's `OneComponent32Float` → 8-bit mask
-/// normalisation (`scaledMaskToOne8`) over `floats` (row-major, length
+/// normalisation (`fillOne8`) over `floats` (row-major, length
 /// `width * height`, values in `0.0..=1.0`) without needing the Vision
 /// segmentation model to detect a subject. Not part of the stable API.
 pub fn _test_helper_scaled_mask_to_one8(floats: &[f32], width: usize, height: usize) -> SegmentationMask {
     assert_eq!(floats.len(), width * height, "floats must be width * height");
     let w = i32::try_from(width).expect("width fits in i32");
     let h = i32::try_from(height).expect("height fits in i32");
-    let mut raw = ffi::SegmentationMaskRaw {
-        width: 0,
-        height: 0,
-        bytes_per_row: 0,
-        bytes: ptr::null_mut(),
-    };
-    // SAFETY: `floats` is valid for `width * height` reads; `raw` is a valid
-    // out-pointer the bridge fills with a freshly allocated 8-bit mask.
+    let len = width.saturating_mul(height);
+    let mut bytes = vec![0u8; len];
+    // SAFETY: `floats` is valid for `width * height` reads; `bytes` is valid for
+    // `len` writes — the bridge converts the floats directly into it.
     let status = unsafe {
-        ffi::vn_test_helper_scaled_mask_to_one8(floats.as_ptr(), w, h, &mut raw)
+        ffi::vn_test_helper_fill_one8_from_floats(floats.as_ptr(), w, h, bytes.as_mut_ptr(), len)
     };
     assert_eq!(status, ffi::status::OK, "scaled mask helper failed: {status}");
-    take_raw(&mut raw)
+    SegmentationMask {
+        width,
+        height,
+        bytes_per_row: width,
+        bytes,
+    }
 }

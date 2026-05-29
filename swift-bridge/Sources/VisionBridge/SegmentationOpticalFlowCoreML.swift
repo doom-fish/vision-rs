@@ -21,7 +21,7 @@ public struct VNSegmentationMaskRaw {
     public var bytes: UnsafeMutableRawPointer?
 }
 
-internal func copyCVPixelBufferToBytes(_ buffer: CVPixelBuffer) -> VNSegmentationMaskRaw {
+private func copyCVPixelBufferToBytes(_ buffer: CVPixelBuffer) -> VNSegmentationMaskRaw {
     let width = CVPixelBufferGetWidth(buffer)
     let height = CVPixelBufferGetHeight(buffer)
     let bytesPerRow = CVPixelBufferGetBytesPerRow(buffer)

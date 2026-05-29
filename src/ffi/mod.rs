@@ -486,12 +486,16 @@ extern "C" {
         out_error_message: *mut *mut c_char,
     ) -> i32;
 
-    pub fn vn_generate_scaled_foreground_mask_in_path(
+    pub fn vn_scaled_foreground_mask_begin(
         path: *const c_char,
-        out_mask: *mut SegmentationMaskRaw,
         out_has_value: *mut bool,
+        out_width: *mut i32,
+        out_height: *mut i32,
+        out_handle: *mut *mut c_void,
         out_error_message: *mut *mut c_char,
     ) -> i32;
+
+    pub fn vn_scaled_foreground_mask_finish(handle: *mut c_void, dst: *mut u8, dst_len: usize);
 
     pub fn vn_segmentation_mask_free(mask: *mut SegmentationMaskRaw);
 
@@ -589,11 +593,12 @@ extern "C" {
         output_path: *const c_char,
     ) -> i32;
 
-    pub fn vn_test_helper_scaled_mask_to_one8(
+    pub fn vn_test_helper_fill_one8_from_floats(
         floats: *const f32,
         width: i32,
         height: i32,
-        out_mask: *mut SegmentationMaskRaw,
+        dst: *mut u8,
+        dst_len: usize,
     ) -> i32;
 
     pub fn vn_test_helper_render_text_video(
