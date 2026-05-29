@@ -8,7 +8,7 @@
 //! foreground). For instance masks, pixel values index into a list
 //! of detected instances (`1..=instance_count`).
 
-use core::ffi::c_char;
+use core::ffi::{c_char, c_void};
 use core::ptr;
 use std::ffi::CString;
 use std::path::Path;
@@ -180,6 +180,78 @@ pub fn generate_foreground_instance_mask_in_path(
     }))
 }
 
+/// Generate a scaled, unioned foreground mask for the image at `path`
+/// (macOS 14+).
+///
+/// Calls `VNGenerateForegroundInstanceMaskRequest`, then invokes
+/// `-[VNInstanceMaskObservation generateScaledMaskForImageForInstances:fromRequestHandler:error:]`
+/// with `allInstances`. The returned mask is a single-channel 8-bit
+/// alpha image at the source image's dimensions (NOT the inference
+/// resolution). `0` = background, `255` = foreground, with anti-aliased
+/// edges produced by Apple's internal upsampler.
+///
+/// This is the API behind Finder's "Remove Background" Quick Action,
+/// and is the right choice for ~95 % of foreground-mask use cases.
+/// Use [`generate_foreground_instance_mask_in_path`] only if you need
+/// the raw per-instance integer-label mask at inference resolution.
+///
+/// Returns `Ok(None)` when no foreground subject was detected.
+///
+/// # Errors
+///
+/// Returns [`VisionError::ImageLoadFailed`] / [`VisionError::RequestFailed`].
+pub fn generate_scaled_foreground_mask_in_path(
+    path: impl AsRef<Path>,
+) -> Result<Option<SegmentationMask>, VisionError> {
+    let path_str = path
+        .as_ref()
+        .to_str()
+        .ok_or_else(|| VisionError::InvalidArgument("non-UTF-8 path".into()))?;
+    let path_c = CString::new(path_str)
+        .map_err(|e| VisionError::InvalidArgument(format!("path NUL byte: {e}")))?;
+
+    let mut has_value = false;
+    let mut width: i32 = 0;
+    let mut height: i32 = 0;
+    let mut handle: *mut c_void = ptr::null_mut();
+    let mut err_msg: *mut c_char = ptr::null_mut();
+    // SAFETY: all pointer arguments are valid stack locations; the path is a valid C string for the duration of the call.
+    let status = unsafe {
+        ffi::vn_scaled_foreground_mask_begin(
+            path_c.as_ptr(),
+            &mut has_value,
+            &mut width,
+            &mut height,
+            &mut handle,
+            &mut err_msg,
+        )
+    };
+    if status != ffi::status::OK {
+        // SAFETY: the error pointer is either null or a bridge-allocated C string; `from_swift` frees it.
+        return Err(unsafe { from_swift(status, err_msg) });
+    }
+    if !has_value || handle.is_null() {
+        return Ok(None);
+    }
+
+    let width = usize::try_from(width).unwrap_or(0);
+    let height = usize::try_from(height).unwrap_or(0);
+    let len = width.saturating_mul(height);
+    // Allocate the destination once and let the bridge convert/copy the mask
+    // directly into it — a single copy, no intermediate Swift allocation.
+    let mut bytes = vec![0u8; len];
+    // SAFETY: `handle` is a non-null buffer retained by `begin`; `bytes` is valid
+    // for `len` writes. `finish` consumes the handle (releases the buffer) exactly once.
+    unsafe { ffi::vn_scaled_foreground_mask_finish(handle, bytes.as_mut_ptr(), len) };
+
+    Ok(Some(SegmentationMask {
+        width,
+        height,
+        bytes_per_row: width,
+        bytes,
+    }))
+}
+
 /// Generate a dedicated `VNInstanceMaskObservation` wrapper for the image at
 /// `path`.
 ///
@@ -204,6 +276,32 @@ fn take_raw(raw: &mut ffi::SegmentationMaskRaw) -> SegmentationMask {
         width: raw.width,
         height: raw.height,
         bytes_per_row: raw.bytes_per_row,
+        bytes,
+    }
+}
+
+#[doc(hidden)]
+#[must_use]
+/// Test helper: run the bridge's `OneComponent32Float` → 8-bit mask
+/// normalisation (`fillOne8`) over `floats` (row-major, length
+/// `width * height`, values in `0.0..=1.0`) without needing the Vision
+/// segmentation model to detect a subject. Not part of the stable API.
+pub fn _test_helper_scaled_mask_to_one8(floats: &[f32], width: usize, height: usize) -> SegmentationMask {
+    assert_eq!(floats.len(), width * height, "floats must be width * height");
+    let w = i32::try_from(width).expect("width fits in i32");
+    let h = i32::try_from(height).expect("height fits in i32");
+    let len = width.saturating_mul(height);
+    let mut bytes = vec![0u8; len];
+    // SAFETY: `floats` is valid for `width * height` reads; `bytes` is valid for
+    // `len` writes — the bridge converts the floats directly into it.
+    let status = unsafe {
+        ffi::vn_test_helper_fill_one8_from_floats(floats.as_ptr(), w, h, bytes.as_mut_ptr(), len)
+    };
+    assert_eq!(status, ffi::status::OK, "scaled mask helper failed: {status}");
+    SegmentationMask {
+        width,
+        height,
+        bytes_per_row: width,
         bytes,
     }
 }
