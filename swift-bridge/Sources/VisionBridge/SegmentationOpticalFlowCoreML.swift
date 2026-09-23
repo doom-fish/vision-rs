@@ -157,6 +157,7 @@ public func vn_generate_optical_flow_in_paths(
     if let lvl = VNGenerateOpticalFlowRequest.ComputationAccuracy(rawValue: UInt(computationAccuracy)) {
         request.computationAccuracy = lvl
     }
+    request.outputPixelFormat = kCVPixelFormatType_TwoComponent32Float
     do { try handler.perform([request]) } catch {
         outErrorMessage?.pointee = ffiString("optical flow request failed: \(error.localizedDescription)")
         outHasValue.pointee = false
@@ -165,6 +166,11 @@ public func vn_generate_optical_flow_in_paths(
     guard let obs = request.results?.first else {
         outHasValue.pointee = false
         return VN_OK
+    }
+    guard CVPixelBufferGetPixelFormatType(obs.pixelBuffer) == kCVPixelFormatType_TwoComponent32Float else {
+        outErrorMessage?.pointee = ffiString("optical flow returned an unexpected pixel format")
+        outHasValue.pointee = false
+        return VN_REQUEST_FAILED
     }
     outMask.pointee = copyCVPixelBufferToBytes(obs.pixelBuffer)
     outHasValue.pointee = true

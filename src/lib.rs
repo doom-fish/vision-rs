@@ -235,7 +235,8 @@ pub use segmentation::{
 
 #[cfg(feature = "optical_flow")]
 pub use optical_flow::{
-    generate_optical_flow_in_paths, generate_optical_flow_observation_in_paths, OpticalFlowAccuracy,
+    generate_optical_flow_in_paths, generate_optical_flow_observation_in_paths, OpticalFlow,
+    OpticalFlowAccuracy,
 };
 
 #[cfg(feature = "coreml")]
@@ -345,7 +346,7 @@ pub mod prelude {
     pub use crate::humans::{detect_human_rectangles_in_path, DetectedHuman};
     #[cfg(feature = "optical_flow")]
     pub use crate::optical_flow::{
-        generate_optical_flow_in_paths, generate_optical_flow_observation_in_paths,
+        generate_optical_flow_in_paths, generate_optical_flow_observation_in_paths, OpticalFlow,
         OpticalFlowAccuracy,
     };
     #[cfg(feature = "recognize_text")]
