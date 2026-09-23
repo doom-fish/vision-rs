@@ -1,10 +1,15 @@
 //! `CoreML` inference via Vision (`VNCoreMLModel`, `VNCoreMLRequest`, and
 //! `VNCoreMLFeatureValueObservation`).
 
-use core::{ffi::c_char, ptr};
+use core::{
+    ffi::{c_char, c_void},
+    fmt,
+    ptr::{self, NonNull},
+};
 use std::{
     ffi::{CStr, CString},
     path::{Path, PathBuf},
+    sync::{Arc, Mutex, PoisonError},
 };
 
 use crate::classify::Classification;
@@ -22,11 +27,23 @@ pub enum CoreMLImageCropAndScaleOption {
     ScaleFillRotate90CCW = 0x102,
 }
 
+struct LoadedModel(NonNull<c_void>);
+
+unsafe impl Send for LoadedModel {}
+unsafe impl Sync for LoadedModel {}
+
+impl Drop for LoadedModel {
+    fn drop(&mut self) {
+        unsafe { ffi::vn_coreml_model_release(self.0.as_ptr()) };
+    }
+}
+
 /// A safe wrapper for `VNCoreMLModel`.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Clone)]
 pub struct CoreMLModel {
     model_path: PathBuf,
     input_image_feature_name: Option<String>,
+    loaded: Arc<Mutex<Option<Arc<LoadedModel>>>>,
 }
 
 impl CoreMLModel {
@@ -35,6 +52,7 @@ impl CoreMLModel {
         Self {
             model_path: model_path.as_ref().to_path_buf(),
             input_image_feature_name: None,
+            loaded: Arc::default(),
         }
     }
 
@@ -44,6 +62,7 @@ impl CoreMLModel {
         input_image_feature_name: impl Into<String>,
     ) -> Self {
         self.input_image_feature_name = Some(input_image_feature_name.into());
+        self.loaded = Arc::default();
         self
     }
 
@@ -56,7 +75,76 @@ impl CoreMLModel {
     pub fn input_image_feature_name(&self) -> Option<&str> {
         self.input_image_feature_name.as_deref()
     }
+
+    #[must_use]
+    pub fn is_loaded(&self) -> bool {
+        self.loaded
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .is_some()
+    }
+
+    fn loaded_model(&self) -> Result<Arc<LoadedModel>, VisionError> {
+        let mut slot = self.loaded.lock().unwrap_or_else(PoisonError::into_inner);
+        if let Some(model) = slot.as_ref() {
+            return Ok(Arc::clone(model));
+        }
+        let model_c = path_to_cstring(&self.model_path, "model path")?;
+        let input_feature_c = self
+            .input_image_feature_name
+            .as_deref()
+            .map(|name| {
+                CString::new(name).map_err(|err| {
+                    VisionError::InvalidArgument(format!(
+                        "input image feature name NUL byte: {err}"
+                    ))
+                })
+            })
+            .transpose()?;
+        let mut handle: *mut c_void = ptr::null_mut();
+        let mut err_msg: *mut c_char = ptr::null_mut();
+        let status = unsafe {
+            ffi::vn_coreml_model_load(
+                model_c.as_ptr(),
+                input_feature_c
+                    .as_ref()
+                    .map_or(ptr::null(), |name| name.as_ptr()),
+                &raw mut handle,
+                &raw mut err_msg,
+            )
+        };
+        if status != ffi::status::OK {
+            return Err(unsafe { from_swift(status, err_msg) });
+        }
+        let handle = NonNull::new(handle).ok_or_else(|| VisionError::Unknown {
+            code: ffi::status::UNKNOWN,
+            message: "Core ML model bridge returned a null handle".into(),
+        })?;
+        let model = Arc::new(LoadedModel(handle));
+        *slot = Some(Arc::clone(&model));
+        drop(slot);
+        Ok(model)
+    }
 }
+
+impl fmt::Debug for CoreMLModel {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("CoreMLModel")
+            .field("model_path", &self.model_path)
+            .field("input_image_feature_name", &self.input_image_feature_name)
+            .field("loaded", &self.is_loaded())
+            .finish()
+    }
+}
+
+impl PartialEq for CoreMLModel {
+    fn eq(&self, other: &Self) -> bool {
+        self.model_path == other.model_path
+            && self.input_image_feature_name == other.input_image_feature_name
+    }
+}
+
+impl Eq for CoreMLModel {}
 
 /// A safe `MLFeatureValue` wrapper for `VNCoreMLFeatureValueObservation`.
 #[derive(Debug, Clone, PartialEq)]
@@ -141,18 +229,7 @@ impl CoreMLRequest {
         image_path: impl AsRef<Path>,
     ) -> Result<Vec<Classification>, VisionError> {
         let image_c = path_to_cstring(image_path.as_ref(), "image path")?;
-        let model_c = path_to_cstring(self.model.model_path(), "model path")?;
-        let input_feature_c = self
-            .model
-            .input_image_feature_name()
-            .map(|name| {
-                CString::new(name).map_err(|err| {
-                    VisionError::InvalidArgument(format!(
-                        "input image feature name NUL byte: {err}"
-                    ))
-                })
-            })
-            .transpose()?;
+        let model = self.model.loaded_model()?;
         let roi = self.image_based.region_of_interest();
         let mut out_array = ptr::null_mut();
         let mut out_count = 0;
@@ -161,11 +238,7 @@ impl CoreMLRequest {
         let status = unsafe {
             ffi::vn_coreml_request_classify_in_path(
                 image_c.as_ptr(),
-                model_c.as_ptr(),
-                input_feature_c
-                    .as_ref()
-                    .map_or(ptr::null(), |name| name.as_ptr()),
-                input_feature_c.is_some(),
+                model.0.as_ptr(),
                 self.image_crop_and_scale_option as i32,
                 roi.map_or(0.0, |rect| rect.x),
                 roi.map_or(0.0, |rect| rect.y),
@@ -200,18 +273,7 @@ impl CoreMLRequest {
         image_path: impl AsRef<Path>,
     ) -> Result<Option<CoreMLFeatureValueObservation>, VisionError> {
         let image_c = path_to_cstring(image_path.as_ref(), "image path")?;
-        let model_c = path_to_cstring(self.model.model_path(), "model path")?;
-        let input_feature_c = self
-            .model
-            .input_image_feature_name()
-            .map(|name| {
-                CString::new(name).map_err(|err| {
-                    VisionError::InvalidArgument(format!(
-                        "input image feature name NUL byte: {err}"
-                    ))
-                })
-            })
-            .transpose()?;
+        let model = self.model.loaded_model()?;
         let roi = self.image_based.region_of_interest();
         let mut raw = ffi::CoreMLFeatureValueRaw {
             feature_name: ptr::null_mut(),
@@ -231,11 +293,7 @@ impl CoreMLRequest {
         let status = unsafe {
             ffi::vn_coreml_feature_value_in_path(
                 image_c.as_ptr(),
-                model_c.as_ptr(),
-                input_feature_c
-                    .as_ref()
-                    .map_or(ptr::null(), |name| name.as_ptr()),
-                input_feature_c.is_some(),
+                model.0.as_ptr(),
                 self.image_crop_and_scale_option as i32,
                 roi.map_or(0.0, |rect| rect.x),
                 roi.map_or(0.0, |rect| rect.y),

@@ -513,19 +513,18 @@ extern "C" {
         out_error_message: *mut *mut c_char,
     ) -> i32;
 
-    pub fn vn_coreml_classify_in_path(
-        path: *const c_char,
+    pub fn vn_coreml_model_load(
         model_path: *const c_char,
-        out_array: *mut *mut c_void,
-        out_count: *mut usize,
+        input_image_feature_name: *const c_char,
+        out_handle: *mut *mut c_void,
         out_error_message: *mut *mut c_char,
     ) -> i32;
 
+    pub fn vn_coreml_model_release(handle: *mut c_void);
+
     pub fn vn_coreml_request_classify_in_path(
         path: *const c_char,
-        model_path: *const c_char,
-        input_image_feature_name: *const c_char,
-        has_input_image_feature_name: bool,
+        model: *mut c_void,
         image_crop_and_scale_option: i32,
         roi_x: f64,
         roi_y: f64,
@@ -543,9 +542,7 @@ extern "C" {
 
     pub fn vn_coreml_feature_value_in_path(
         path: *const c_char,
-        model_path: *const c_char,
-        input_image_feature_name: *const c_char,
-        has_input_image_feature_name: bool,
+        model: *mut c_void,
         image_crop_and_scale_option: i32,
         roi_x: f64,
         roi_y: f64,

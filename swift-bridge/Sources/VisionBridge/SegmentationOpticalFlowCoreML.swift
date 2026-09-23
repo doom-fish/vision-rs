@@ -187,18 +187,80 @@ public struct VNCoreMLFeatureValueRaw {
     public var multi_array_value_count: Int
 }
 
-internal func loadVisionCoreMLModel(
-    modelPath: String,
-    inputImageFeatureName: String?
-) throws -> VNCoreMLModel {
-    let modelURL = URL(fileURLWithPath: modelPath)
-    let compiledURL = try MLModel.compileModel(at: modelURL)
-    let mlModel = try MLModel(contentsOf: compiledURL)
-    let vnModel = try VNCoreMLModel(for: mlModel)
-    if let inputImageFeatureName, #available(macOS 10.15, *) {
-        vnModel.inputImageFeatureName = inputImageFeatureName
+private let coreMLCompileLock = NSLock()
+
+final class VisionCoreMLModelBox {
+    var model: VNCoreMLModel?
+    private let ownedDirectory: URL?
+
+    init(ownedDirectory: URL?) {
+        self.ownedDirectory = ownedDirectory
     }
-    return vnModel
+
+    deinit {
+        model = nil
+        if let ownedDirectory {
+            try? FileManager.default.removeItem(at: ownedDirectory)
+        }
+    }
+}
+
+private func compileCoreMLModel(at modelURL: URL) throws -> (model: URL, directory: URL) {
+    coreMLCompileLock.lock()
+    defer { coreMLCompileLock.unlock() }
+    let compiled = try MLModel.compileModel(at: modelURL)
+    let directory = FileManager.default.temporaryDirectory
+        .appendingPathComponent("apple-vision-coreml-\(UUID().uuidString)", isDirectory: true)
+    do {
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        let destination = directory.appendingPathComponent(compiled.lastPathComponent, isDirectory: true)
+        try FileManager.default.moveItem(at: compiled, to: destination)
+        return (destination, directory)
+    } catch {
+        try? FileManager.default.removeItem(at: compiled)
+        try? FileManager.default.removeItem(at: directory)
+        throw error
+    }
+}
+
+@_cdecl("vn_coreml_model_load")
+public func vn_coreml_model_load(
+    _ modelPath: UnsafePointer<CChar>,
+    _ inputImageFeatureName: UnsafePointer<CChar>?,
+    _ outHandle: UnsafeMutablePointer<UnsafeMutableRawPointer?>,
+    _ outErrorMessage: UnsafeMutablePointer<UnsafeMutablePointer<CChar>?>?
+) -> Int32 {
+    outHandle.pointee = nil
+    let modelURL = URL(fileURLWithPath: String(cString: modelPath))
+    let featureName = inputImageFeatureName.map { String(cString: $0) }
+    do {
+        let box: VisionCoreMLModelBox
+        let compiledURL: URL
+        if modelURL.pathExtension == "mlmodelc" {
+            box = VisionCoreMLModelBox(ownedDirectory: nil)
+            compiledURL = modelURL
+        } else {
+            let compiled = try compileCoreMLModel(at: modelURL)
+            box = VisionCoreMLModelBox(ownedDirectory: compiled.directory)
+            compiledURL = compiled.model
+        }
+        let vnModel = try VNCoreMLModel(for: MLModel(contentsOf: compiledURL))
+        if let featureName, #available(macOS 10.15, *) {
+            vnModel.inputImageFeatureName = featureName
+        }
+        box.model = vnModel
+        outHandle.pointee = Unmanaged.passRetained(box).toOpaque()
+        return VN_OK
+    } catch {
+        outErrorMessage?.pointee = ffiString("CoreML model load failed: \(error.localizedDescription)")
+        return VN_REQUEST_FAILED
+    }
+}
+
+@_cdecl("vn_coreml_model_release")
+public func vn_coreml_model_release(_ handle: UnsafeMutableRawPointer?) {
+    guard let handle else { return }
+    Unmanaged<VisionCoreMLModelBox>.fromOpaque(handle).release()
 }
 
 internal func applyCoreMLRequestConfig(
@@ -255,41 +317,10 @@ internal func copyMultiArrayValues(_ multiArray: MLMultiArray) -> [Double] {
     }
 }
 
-@_cdecl("vn_coreml_classify_in_path")
-public func vn_coreml_classify_in_path(
-    _ path: UnsafePointer<CChar>,
-    _ model_path: UnsafePointer<CChar>,
-    _ outArray: UnsafeMutablePointer<UnsafeMutableRawPointer?>,
-    _ outCount: UnsafeMutablePointer<Int>,
-    _ outErrorMessage: UnsafeMutablePointer<UnsafeMutablePointer<CChar>?>?
-) -> Int32 {
-    return vn_coreml_request_classify_in_path(
-        path,
-        model_path,
-        nil,
-        false,
-        0,
-        0,
-        0,
-        1,
-        1,
-        false,
-        false,
-        false,
-        0,
-        false,
-        outArray,
-        outCount,
-        outErrorMessage
-    )
-}
-
 @_cdecl("vn_coreml_request_classify_in_path")
 public func vn_coreml_request_classify_in_path(
     _ path: UnsafePointer<CChar>,
-    _ model_path: UnsafePointer<CChar>,
-    _ input_image_feature_name: UnsafePointer<CChar>?,
-    _ has_input_image_feature_name: Bool,
+    _ modelHandle: UnsafeMutableRawPointer,
     _ imageCropAndScaleOption: Int32,
     _ roiX: Double,
     _ roiY: Double,
@@ -305,24 +336,18 @@ public func vn_coreml_request_classify_in_path(
     _ outErrorMessage: UnsafeMutablePointer<UnsafeMutablePointer<CChar>?>?
 ) -> Int32 {
     let pathStr = String(cString: path)
-    let modelStr = String(cString: model_path)
-    let inputImageFeatureName = has_input_image_feature_name && input_image_feature_name != nil
-        ? String(cString: input_image_feature_name!)
-        : nil
+    let modelBox = Unmanaged<VisionCoreMLModelBox>.fromOpaque(modelHandle).takeUnretainedValue()
     outArray.pointee = nil
     outCount.pointee = 0
     guard let cgImage = loadCGImage(path: pathStr) else {
         outErrorMessage?.pointee = ffiString("could not load image at \(pathStr)")
         return VN_IMAGE_LOAD_FAILED
     }
-    let request: VNCoreMLRequest
-    do {
-        let vnModel = try loadVisionCoreMLModel(modelPath: modelStr, inputImageFeatureName: inputImageFeatureName)
-        request = VNCoreMLRequest(model: vnModel)
-    } catch {
-        outErrorMessage?.pointee = ffiString("CoreML model load failed: \(error.localizedDescription)")
-        return VN_REQUEST_FAILED
+    guard let vnModel = modelBox.model else {
+        outErrorMessage?.pointee = ffiString("CoreML model is not loaded")
+        return VN_INVALID_ARGUMENT
     }
+    let request = VNCoreMLRequest(model: vnModel)
     applyCoreMLRequestConfig(
         request,
         imageCropAndScaleOption: imageCropAndScaleOption,
@@ -359,9 +384,7 @@ public func vn_coreml_request_classify_in_path(
 @_cdecl("vn_coreml_feature_value_in_path")
 public func vn_coreml_feature_value_in_path(
     _ path: UnsafePointer<CChar>,
-    _ model_path: UnsafePointer<CChar>,
-    _ input_image_feature_name: UnsafePointer<CChar>?,
-    _ has_input_image_feature_name: Bool,
+    _ modelHandle: UnsafeMutableRawPointer,
     _ imageCropAndScaleOption: Int32,
     _ roiX: Double,
     _ roiY: Double,
@@ -378,10 +401,7 @@ public func vn_coreml_feature_value_in_path(
 ) -> Int32 {
     let outFeature = outFeatureRaw.assumingMemoryBound(to: VNCoreMLFeatureValueRaw.self)
     let pathStr = String(cString: path)
-    let modelStr = String(cString: model_path)
-    let inputImageFeatureName = has_input_image_feature_name && input_image_feature_name != nil
-        ? String(cString: input_image_feature_name!)
-        : nil
+    let modelBox = Unmanaged<VisionCoreMLModelBox>.fromOpaque(modelHandle).takeUnretainedValue()
     outHasValue.pointee = false
     outFeature.pointee = VNCoreMLFeatureValueRaw(
         feature_name: nil,
@@ -399,14 +419,11 @@ public func vn_coreml_feature_value_in_path(
         outErrorMessage?.pointee = ffiString("could not load image at \(pathStr)")
         return VN_IMAGE_LOAD_FAILED
     }
-    let request: VNCoreMLRequest
-    do {
-        let vnModel = try loadVisionCoreMLModel(modelPath: modelStr, inputImageFeatureName: inputImageFeatureName)
-        request = VNCoreMLRequest(model: vnModel)
-    } catch {
-        outErrorMessage?.pointee = ffiString("CoreML model load failed: \(error.localizedDescription)")
-        return VN_REQUEST_FAILED
+    guard let vnModel = modelBox.model else {
+        outErrorMessage?.pointee = ffiString("CoreML model is not loaded")
+        return VN_INVALID_ARGUMENT
     }
+    let request = VNCoreMLRequest(model: vnModel)
     applyCoreMLRequestConfig(
         request,
         imageCropAndScaleOption: imageCropAndScaleOption,
