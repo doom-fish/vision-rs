@@ -9,7 +9,7 @@ description = "Safe Rust bindings for Apple's Vision framework — OCR, object d
 authors = ["Per Johansson <per@doom.fish>"]
 keywords = ["vision", "ocr", "macos", "computer-vision", "apple"]
 categories = ["api-bindings", "os::macos-apis", "computer-vision"]
-rust-version = "1.76"
+rust-version = "1.82"
 readme = "README.md"
 build = "build.rs"
 include = [
@@ -67,8 +67,8 @@ coreml = ["classify"]
 tracking = ["recognize_text", "rectangles"]
 
 [dependencies]
-apple-cf = { path = "../apple-cf-rs", version = ">=0.7, <0.10", default-features = false, features = ["cv", "iosurface"] }
-doom-fish-utils = { path = "../doom-fish-utils", version = ">=0.1, <0.4" }
+apple-cf = { path = "../apple-cf-rs", version = ">=0.11, <0.12", default-features = false, features = ["cv", "iosurface"] }
+doom-fish-utils = { path = "../doom-fish-utils", version = ">=0.4.1, <0.5" }
 libc = "0.2.186"
 
 [dev-dependencies]

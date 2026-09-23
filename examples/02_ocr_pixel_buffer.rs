@@ -38,7 +38,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let mut g = surface
             .lock(IOSurfaceLockOptions::NONE)
             .map_err(|c| format!("lock: {c}"))?;
-        if let Some(b) = g.as_slice_mut() {
+        if let Some(b) = unsafe { g.as_slice_mut() } {
             // Fill with white. (Vision will find nothing, but the smoke test
             // is verifying the pipeline plumbing, not the OCR quality.)
             for px in b.chunks_exact_mut(4) {
