@@ -163,7 +163,7 @@ public func vn_scaled_foreground_mask_begin(
         outErrorMessage?.pointee = ffiString("could not load image at \(pathStr)")
         return VN_IMAGE_LOAD_FAILED
     }
-    let handler = VNImageRequestHandler(cgImage: cgImage, options: [:])
+    let handler = VNImageRequestHandler(cgImage: cgImage, orientation: imageOrientation(path: pathStr), options: [:])
     if #available(macOS 14.0, *) {
         let request = VNGenerateForegroundInstanceMaskRequest()
         do { try handler.perform([request]) } catch {

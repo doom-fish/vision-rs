@@ -74,7 +74,7 @@ public func vn_detect_human_body_pose_in_path(
         outArray.pointee = nil; outCount.pointee = 0
         return VN_IMAGE_LOAD_FAILED
     }
-    let handler = VNImageRequestHandler(cgImage: cgImage, options: [:])
+    let handler = VNImageRequestHandler(cgImage: cgImage, orientation: imageOrientation(path: pathStr), options: [:])
     let request = VNDetectHumanBodyPoseRequest()
     do { try handler.perform([request]) } catch {
         outErrorMessage?.pointee = ffiString("body-pose request failed: \(error.localizedDescription)")
@@ -130,7 +130,7 @@ public func vn_detect_human_hand_pose_in_path(
         outArray.pointee = nil; outCount.pointee = 0
         return VN_IMAGE_LOAD_FAILED
     }
-    let handler = VNImageRequestHandler(cgImage: cgImage, options: [:])
+    let handler = VNImageRequestHandler(cgImage: cgImage, orientation: imageOrientation(path: pathStr), options: [:])
     let request = VNDetectHumanHandPoseRequest()
     if maxHands > 0 { request.maximumHandCount = maxHands }
     do { try handler.perform([request]) } catch {
@@ -216,7 +216,7 @@ public func vn_detect_contours_in_path(
         outArray.pointee = nil; outCount.pointee = 0
         return VN_IMAGE_LOAD_FAILED
     }
-    let handler = VNImageRequestHandler(cgImage: cgImage, options: [:])
+    let handler = VNImageRequestHandler(cgImage: cgImage, orientation: imageOrientation(path: pathStr), options: [:])
     let request = VNDetectContoursRequest()
     request.contrastAdjustment = contrastAdjustment
     request.detectsDarkOnLight = detectsDarkOnLight

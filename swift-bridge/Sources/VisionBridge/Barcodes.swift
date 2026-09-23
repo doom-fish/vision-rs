@@ -41,7 +41,7 @@ public func vn_detect_barcodes_in_path(
         outErrorMessage?.pointee = ffiString("Could not load image at \(pathStr)")
         return VN_IMAGE_LOAD_FAILED
     }
-    let handler = VNImageRequestHandler(ciImage: ciImage, options: [:])
+    let handler = VNImageRequestHandler(ciImage: ciImage, orientation: imageOrientation(path: pathStr), options: [:])
     return runBarcodeRequest(handler: handler, outArray: outArray, outCount: outCount, outErrorMessage: outErrorMessage)
 }
 

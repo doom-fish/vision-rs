@@ -65,3 +65,14 @@ internal func loadCGImage(path: String) -> CGImage? {
     }
     return image
 }
+
+internal func imageOrientation(path: String) -> CGImagePropertyOrientation {
+    let url = URL(fileURLWithPath: path)
+    guard let source = CGImageSourceCreateWithURL(url as CFURL, nil),
+          let properties = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any],
+          let value = properties[kCGImagePropertyOrientation] as? NSNumber,
+          let orientation = CGImagePropertyOrientation(rawValue: value.uint32Value) else {
+        return .up
+    }
+    return orientation
+}

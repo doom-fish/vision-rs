@@ -29,7 +29,7 @@ public func vn_detect_text_rectangles_in_path(
     }
     let req = VNDetectTextRectanglesRequest()
     req.reportCharacterBoxes = reports_character_boxes
-    let handler = VNImageRequestHandler(cgImage: img, options: [:])
+    let handler = VNImageRequestHandler(cgImage: img, orientation: imageOrientation(path: p), options: [:])
     do { try handler.perform([req]) } catch {
         outErrorMessage?.pointee = ffiString("text rectangles request failed: \(error.localizedDescription)")
         return VN_REQUEST_FAILED
@@ -95,7 +95,7 @@ public func vn_detect_text_observations_in_path(
         revision: revision,
         hasRevision: hasRevision
     )
-    let handler = VNImageRequestHandler(cgImage: img, options: [:])
+    let handler = VNImageRequestHandler(cgImage: img, orientation: imageOrientation(path: p), options: [:])
     do { try handler.perform([req]) } catch {
         outErrorMessage?.pointee = ffiString("text observations request failed: \(error.localizedDescription)")
         return VN_REQUEST_FAILED
@@ -159,7 +159,7 @@ public func vn_objectness_saliency_in_path(
         return VN_IMAGE_LOAD_FAILED
     }
     let req = VNGenerateObjectnessBasedSaliencyImageRequest()
-    let handler = VNImageRequestHandler(cgImage: img, options: [:])
+    let handler = VNImageRequestHandler(cgImage: img, orientation: imageOrientation(path: p), options: [:])
     do { try handler.perform([req]) } catch {
         outErrorMessage?.pointee = ffiString("objectness saliency request failed: \(error.localizedDescription)")
         return VN_REQUEST_FAILED
@@ -200,7 +200,7 @@ public func vn_person_instance_mask_begin(
         return VN_IMAGE_LOAD_FAILED
     }
     let req = VNGeneratePersonInstanceMaskRequest()
-    let handler = VNImageRequestHandler(cgImage: img, options: [:])
+    let handler = VNImageRequestHandler(cgImage: img, orientation: imageOrientation(path: p), options: [:])
     do { try handler.perform([req]) } catch {
         outErrorMessage?.pointee = ffiString("person instance mask request failed: \(error.localizedDescription)")
         return VN_REQUEST_FAILED

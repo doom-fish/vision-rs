@@ -55,7 +55,7 @@ public func vn_generate_person_segmentation_in_path(
         outHasValue.pointee = false
         return VN_IMAGE_LOAD_FAILED
     }
-    let handler = VNImageRequestHandler(cgImage: cgImage, options: [:])
+    let handler = VNImageRequestHandler(cgImage: cgImage, orientation: imageOrientation(path: pathStr), options: [:])
     let request = VNGeneratePersonSegmentationRequest()
     if let lvl = VNGeneratePersonSegmentationRequest.QualityLevel(rawValue: UInt(qualityLevel)) {
         request.qualityLevel = lvl
@@ -96,7 +96,7 @@ public func vn_generate_foreground_instance_mask_in_path(
         outHasValue.pointee = false
         return VN_IMAGE_LOAD_FAILED
     }
-    let handler = VNImageRequestHandler(cgImage: cgImage, options: [:])
+    let handler = VNImageRequestHandler(cgImage: cgImage, orientation: imageOrientation(path: pathStr), options: [:])
     if #available(macOS 14.0, *) {
         let request = VNGenerateForegroundInstanceMaskRequest()
         do { try handler.perform([request]) } catch {
@@ -152,8 +152,8 @@ public func vn_generate_optical_flow_in_paths(
         outHasValue.pointee = false
         return VN_IMAGE_LOAD_FAILED
     }
-    let handler = VNImageRequestHandler(cgImage: aImage, options: [:])
-    let request = VNGenerateOpticalFlowRequest(targetedCGImage: bImage, options: [:])
+    let handler = VNImageRequestHandler(cgImage: aImage, orientation: imageOrientation(path: aStr), options: [:])
+    let request = VNGenerateOpticalFlowRequest(targetedCGImage: bImage, orientation: imageOrientation(path: bStr), options: [:])
     if let lvl = VNGenerateOpticalFlowRequest.ComputationAccuracy(rawValue: UInt(computationAccuracy)) {
         request.computationAccuracy = lvl
     }
@@ -336,7 +336,7 @@ public func vn_coreml_request_classify_in_path(
         revision: revision,
         hasRevision: hasRevision
     )
-    let handler = VNImageRequestHandler(cgImage: cgImage, options: [:])
+    let handler = VNImageRequestHandler(cgImage: cgImage, orientation: imageOrientation(path: pathStr), options: [:])
     do { try handler.perform([request]) } catch {
         outErrorMessage?.pointee = ffiString("CoreML perform: \(error.localizedDescription)")
         return VN_REQUEST_FAILED
@@ -420,7 +420,7 @@ public func vn_coreml_feature_value_in_path(
         revision: revision,
         hasRevision: hasRevision
     )
-    let handler = VNImageRequestHandler(cgImage: cgImage, options: [:])
+    let handler = VNImageRequestHandler(cgImage: cgImage, orientation: imageOrientation(path: pathStr), options: [:])
     do { try handler.perform([request]) } catch {
         outErrorMessage?.pointee = ffiString("CoreML perform: \(error.localizedDescription)")
         return VN_REQUEST_FAILED

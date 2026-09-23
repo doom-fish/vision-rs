@@ -126,6 +126,7 @@ internal func applyImageBasedRequestConfig(
 @_cdecl("vn_image_request_handler_perform_text_request")
 public func vn_image_request_handler_perform_text_request(
     _ imagePath: UnsafePointer<CChar>,
+    _ orientationOverride: UInt32,
     _ recognitionLevel: Int32,
     _ usesLanguageCorrection: Bool,
     _ preferBackgroundProcessing: Bool,
@@ -137,14 +138,23 @@ public func vn_image_request_handler_perform_text_request(
     _ outErrorMessage: UnsafeMutablePointer<UnsafeMutablePointer<CChar>?>?
 ) -> Int32 {
     let path = String(cString: imagePath)
+    outArray.pointee = nil
+    outCount.pointee = 0
+    let orientation: CGImagePropertyOrientation
+    if orientationOverride == 0 {
+        orientation = imageOrientation(path: path)
+    } else if let explicit = CGImagePropertyOrientation(rawValue: orientationOverride) {
+        orientation = explicit
+    } else {
+        outErrorMessage?.pointee = ffiString("invalid image orientation \(orientationOverride)")
+        return VN_INVALID_ARGUMENT
+    }
     guard let cgImage = loadCGImage(path: path) else {
         outErrorMessage?.pointee = ffiString("could not load image at \(path)")
-        outArray.pointee = nil
-        outCount.pointee = 0
         return VN_IMAGE_LOAD_FAILED
     }
 
-    let handler = VNImageRequestHandler(cgImage: cgImage, options: [:])
+    let handler = VNImageRequestHandler(cgImage: cgImage, orientation: orientation, options: [:])
     let request = buildRecognizeTextRequest(
         recognitionLevel: recognitionLevel,
         usesLanguageCorrection: usesLanguageCorrection,
@@ -192,7 +202,7 @@ final class TextSequenceRequestHandlerSession {
             revision: revision,
             hasRevision: hasRevision
         )
-        try handler.perform([request], on: cgImage)
+        try handler.perform([request], on: cgImage, orientation: imageOrientation(path: path))
         return (request.results ?? []).map(collectTextObservation)
     }
 }

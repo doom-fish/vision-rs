@@ -42,7 +42,7 @@ public func vn_detect_trajectories_in_path(
     }
     let req = VNDetectTrajectoriesRequest(frameAnalysisSpacing: .zero, trajectoryLength: trajectory_length)
     let handler = VNSequenceRequestHandler()
-    do { try handler.perform([req], on: img) } catch {
+    do { try handler.perform([req], on: img, orientation: imageOrientation(path: p)) } catch {
         let msg = error.localizedDescription
         // Single-image trajectories are degenerate — Apple requires a
         // multi-frame video signal with timestamps. Return zero
@@ -125,8 +125,8 @@ public func vn_register_translational_in_paths(
         outErrorMessage?.pointee = ffiString("could not load images \(tp) / \(fp)")
         return VN_IMAGE_LOAD_FAILED
     }
-    let req = VNTranslationalImageRegistrationRequest(targetedCGImage: target, options: [:])
-    let handler = VNImageRequestHandler(cgImage: floating, options: [:])
+    let req = VNTranslationalImageRegistrationRequest(targetedCGImage: target, orientation: imageOrientation(path: tp), options: [:])
+    let handler = VNImageRequestHandler(cgImage: floating, orientation: imageOrientation(path: fp), options: [:])
     do { try handler.perform([req]) } catch {
         outErrorMessage?.pointee = ffiString("translational registration failed: \(error.localizedDescription)")
         return VN_REQUEST_FAILED
@@ -153,8 +153,8 @@ public func vn_register_homographic_in_paths(
         outErrorMessage?.pointee = ffiString("could not load images \(tp) / \(fp)")
         return VN_IMAGE_LOAD_FAILED
     }
-    let req = VNHomographicImageRegistrationRequest(targetedCGImage: target, options: [:])
-    let handler = VNImageRequestHandler(cgImage: floating, options: [:])
+    let req = VNHomographicImageRegistrationRequest(targetedCGImage: target, orientation: imageOrientation(path: tp), options: [:])
+    let handler = VNImageRequestHandler(cgImage: floating, orientation: imageOrientation(path: fp), options: [:])
     do { try handler.perform([req]) } catch {
         outErrorMessage?.pointee = ffiString("homographic registration failed: \(error.localizedDescription)")
         return VN_REQUEST_FAILED

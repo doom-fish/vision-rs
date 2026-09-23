@@ -34,7 +34,7 @@ public func vn_recognize_animals_in_path(
         outArray.pointee = nil; outCount.pointee = 0
         return VN_IMAGE_LOAD_FAILED
     }
-    let handler = VNImageRequestHandler(cgImage: cgImage, options: [:])
+    let handler = VNImageRequestHandler(cgImage: cgImage, orientation: imageOrientation(path: pathStr), options: [:])
     let request = VNRecognizeAnimalsRequest()
     do { try handler.perform([request]) } catch {
         outErrorMessage?.pointee = ffiString("animal request failed: \(error.localizedDescription)")
@@ -101,7 +101,7 @@ public func vn_classify_image_in_path(
         outArray.pointee = nil; outCount.pointee = 0
         return VN_IMAGE_LOAD_FAILED
     }
-    let handler = VNImageRequestHandler(cgImage: cgImage, options: [:])
+    let handler = VNImageRequestHandler(cgImage: cgImage, orientation: imageOrientation(path: pathStr), options: [:])
     let request = VNClassifyImageRequest()
     do { try handler.perform([request]) } catch {
         outErrorMessage?.pointee = ffiString("classify request failed: \(error.localizedDescription)")

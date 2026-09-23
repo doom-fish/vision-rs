@@ -73,7 +73,7 @@ public func vn_detect_rectangles_in_path(
         outArray.pointee = nil; outCount.pointee = 0
         return VN_IMAGE_LOAD_FAILED
     }
-    let handler = VNImageRequestHandler(cgImage: cgImage, options: [:])
+    let handler = VNImageRequestHandler(cgImage: cgImage, orientation: imageOrientation(path: pathStr), options: [:])
     let request = VNDetectRectanglesRequest()
     if maxObservations > 0 { request.maximumObservations = maxObservations }
     if minimumAspectRatio > 0 { request.minimumAspectRatio = VNAspectRatio(minimumAspectRatio) }
@@ -105,7 +105,7 @@ public func vn_detect_document_segmentation_in_path(
         outArray.pointee = nil; outCount.pointee = 0
         return VN_IMAGE_LOAD_FAILED
     }
-    let handler = VNImageRequestHandler(cgImage: cgImage, options: [:])
+    let handler = VNImageRequestHandler(cgImage: cgImage, orientation: imageOrientation(path: pathStr), options: [:])
     let request = VNDetectDocumentSegmentationRequest()
     do { try handler.perform([request]) } catch {
         outErrorMessage?.pointee = ffiString("document seg request failed: \(error.localizedDescription)")
@@ -143,7 +143,7 @@ public func vn_detect_horizon_in_path(
         out_has_value.pointee = false
         return VN_IMAGE_LOAD_FAILED
     }
-    let handler = VNImageRequestHandler(cgImage: cgImage, options: [:])
+    let handler = VNImageRequestHandler(cgImage: cgImage, orientation: imageOrientation(path: pathStr), options: [:])
     let request = VNDetectHorizonRequest()
     do { try handler.perform([request]) } catch {
         outErrorMessage?.pointee = ffiString("horizon request failed: \(error.localizedDescription)")

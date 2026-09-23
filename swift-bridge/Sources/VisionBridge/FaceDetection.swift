@@ -43,7 +43,7 @@ public func vn_detect_faces_in_path(
         return VN_IMAGE_LOAD_FAILED
     }
     return runFaceDetect(
-        handler: VNImageRequestHandler(cgImage: cgImage, options: [:]),
+        handler: VNImageRequestHandler(cgImage: cgImage, orientation: imageOrientation(path: pathStr), options: [:]),
         outArray: outArray,
         outCount: outCount,
         outErrorMessage: outErrorMessage

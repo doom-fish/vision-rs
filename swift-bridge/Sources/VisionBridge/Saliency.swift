@@ -39,7 +39,7 @@ public func vn_attention_saliency_in_path(
         outErrorMessage?.pointee = ffiString("Could not load image at \(pathStr)")
         return VN_IMAGE_LOAD_FAILED
     }
-    let handler = VNImageRequestHandler(ciImage: ciImage, options: [:])
+    let handler = VNImageRequestHandler(ciImage: ciImage, orientation: imageOrientation(path: pathStr), options: [:])
     let request = VNGenerateAttentionBasedSaliencyImageRequest()
     do {
         try handler.perform([request])
@@ -100,11 +100,27 @@ public func vn_test_helper_render_text_png(
     _ height: Int32,
     _ outputPath: UnsafePointer<CChar>
 ) -> Int32 {
-    let textStr = String(cString: text)
     let pathStr = String(cString: outputPath)
+    guard let image = renderTextImage(String(cString: text), width: Int(width), height: Int(height)) else {
+        return VN_UNKNOWN
+    }
+    let url = URL(fileURLWithPath: pathStr)
+    guard let dest = CGImageDestinationCreateWithURL(
+        url as CFURL,
+        "public.png" as CFString,
+        1,
+        nil
+    ) else {
+        return VN_UNKNOWN
+    }
+    CGImageDestinationAddImage(dest, image, nil)
+    if !CGImageDestinationFinalize(dest) {
+        return VN_UNKNOWN
+    }
+    return VN_OK
+}
 
-    let w = Int(width)
-    let h = Int(height)
+private func renderTextImage(_ textStr: String, width w: Int, height h: Int) -> CGImage? {
     let colorSpace = CGColorSpaceCreateDeviceRGB()
     guard let context = CGContext(
         data: nil,
@@ -115,7 +131,7 @@ public func vn_test_helper_render_text_png(
         space: colorSpace,
         bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
     ) else {
-        return VN_UNKNOWN
+        return nil
     }
 
     // White background
@@ -138,20 +154,43 @@ public func vn_test_helper_render_text_png(
     attributed.draw(at: NSPoint(x: drawX, y: drawY))
     NSGraphicsContext.restoreGraphicsState()
 
-    // Save as PNG via ImageIO.
-    guard let image = context.makeImage() else { return VN_UNKNOWN }
-    let url = URL(fileURLWithPath: pathStr)
-    guard let dest = CGImageDestinationCreateWithURL(
-        url as CFURL,
-        "public.png" as CFString,
-        1,
-        nil
+    return context.makeImage()
+}
+
+@_cdecl("vn_test_helper_render_sideways_text_jpeg")
+public func vn_test_helper_render_sideways_text_jpeg(
+    _ text: UnsafePointer<CChar>,
+    _ width: Int32,
+    _ height: Int32,
+    _ outputPath: UnsafePointer<CChar>
+) -> Int32 {
+    let pathStr = String(cString: outputPath)
+    guard let upright = renderTextImage(String(cString: text), width: Int(width), height: Int(height)) else {
+        return VN_UNKNOWN
+    }
+
+    let w = upright.width
+    let h = upright.height
+    guard let context = CGContext(
+        data: nil,
+        width: h,
+        height: w,
+        bitsPerComponent: 8,
+        bytesPerRow: h * 4,
+        space: CGColorSpaceCreateDeviceRGB(),
+        bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
     ) else {
         return VN_UNKNOWN
     }
-    CGImageDestinationAddImage(dest, image, nil)
-    if !CGImageDestinationFinalize(dest) {
+    context.translateBy(x: CGFloat(h), y: 0)
+    context.rotate(by: .pi / 2)
+    context.draw(upright, in: CGRect(x: 0, y: 0, width: w, height: h))
+    guard let sideways = context.makeImage(),
+          let dest = CGImageDestinationCreateWithURL(
+            URL(fileURLWithPath: pathStr) as CFURL, "public.jpeg" as CFString, 1, nil) else {
         return VN_UNKNOWN
     }
-    return VN_OK
+    let properties = [kCGImagePropertyOrientation: CGImagePropertyOrientation.right.rawValue] as CFDictionary
+    CGImageDestinationAddImage(dest, sideways, properties)
+    return CGImageDestinationFinalize(dest) ? VN_OK : VN_UNKNOWN
 }

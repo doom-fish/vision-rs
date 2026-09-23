@@ -30,7 +30,7 @@ public func vn_recognize_text_in_path(
         outCount.pointee = 0
         return VN_IMAGE_LOAD_FAILED
     }
-    let handler = VNImageRequestHandler(cgImage: cgImage, options: [:])
+    let handler = VNImageRequestHandler(cgImage: cgImage, orientation: imageOrientation(path: pathStr), options: [:])
     return runOCR(
         handler: handler,
         recognitionLevel: recognitionLevel,

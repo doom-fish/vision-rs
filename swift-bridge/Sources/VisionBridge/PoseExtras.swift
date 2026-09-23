@@ -65,7 +65,7 @@ public func vn_detect_animal_body_pose_in_path(
             return VN_IMAGE_LOAD_FAILED
         }
         let req = VNDetectAnimalBodyPoseRequest()
-        let handler = VNImageRequestHandler(cgImage: img, options: [:])
+        let handler = VNImageRequestHandler(cgImage: img, orientation: imageOrientation(path: p), options: [:])
         do { try handler.perform([req]) } catch {
             outErrorMessage?.pointee = ffiString("animal body pose request failed: \(error.localizedDescription)")
             return VN_REQUEST_FAILED
@@ -144,7 +144,7 @@ public func vn_detect_human_body_pose_3d_in_path(
             return VN_IMAGE_LOAD_FAILED
         }
         let req = VNDetectHumanBodyPose3DRequest()
-        let handler = VNImageRequestHandler(cgImage: img, options: [:])
+        let handler = VNImageRequestHandler(cgImage: img, orientation: imageOrientation(path: p), options: [:])
         do { try handler.perform([req]) } catch {
             outErrorMessage?.pointee = ffiString("3D body pose request failed: \(error.localizedDescription)")
             return VN_REQUEST_FAILED

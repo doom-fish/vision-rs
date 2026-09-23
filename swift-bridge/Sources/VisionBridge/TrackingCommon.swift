@@ -86,22 +86,22 @@ final class ObjectTrackerSession {
     private let request: VNTrackObjectRequest
     private var lastObservation: VNDetectedObjectObservation
 
-    init(initialImage: CGImage, initialBoundingBox: VNSimpleRectRaw) throws {
+    init(initialImage: CGImage, orientation: CGImagePropertyOrientation, initialBoundingBox: VNSimpleRectRaw) throws {
         let rect = CGRect(x: initialBoundingBox.x, y: initialBoundingBox.y,
                           width: initialBoundingBox.w, height: initialBoundingBox.h)
         let observation = VNDetectedObjectObservation(boundingBox: rect)
         request = VNTrackObjectRequest(detectedObjectObservation: observation)
         request.trackingLevel = .accurate
         lastObservation = observation
-        try handler.perform([request], on: initialImage)
+        try handler.perform([request], on: initialImage, orientation: orientation)
         if let tracked = request.results?.first as? VNDetectedObjectObservation {
             lastObservation = tracked
             request.inputObservation = tracked
         }
     }
 
-    func track(nextImage: CGImage) throws -> VNSimpleRectRaw {
-        try handler.perform([request], on: nextImage)
+    func track(nextImage: CGImage, orientation: CGImagePropertyOrientation) throws -> VNSimpleRectRaw {
+        try handler.perform([request], on: nextImage, orientation: orientation)
         if let tracked = request.results?.first as? VNDetectedObjectObservation {
             lastObservation = tracked
             request.inputObservation = tracked
@@ -115,20 +115,20 @@ final class RectangleTrackerSession {
     private let request: VNTrackRectangleRequest
     private var lastObservation: VNRectangleObservation
 
-    init(initialImage: CGImage, initialObservation: VNRectangleObservationRaw) throws {
+    init(initialImage: CGImage, orientation: CGImagePropertyOrientation, initialObservation: VNRectangleObservationRaw) throws {
         let rectangleObservation = mkRectangleObservation(initialObservation)
         request = VNTrackRectangleRequest(rectangleObservation: rectangleObservation)
         request.trackingLevel = .accurate
         lastObservation = rectangleObservation
-        try handler.perform([request], on: initialImage)
+        try handler.perform([request], on: initialImage, orientation: orientation)
         if let tracked = request.results?.first as? VNRectangleObservation {
             lastObservation = tracked
             request.inputObservation = tracked
         }
     }
 
-    func track(nextImage: CGImage) throws -> VNRectangleObservationRaw {
-        try handler.perform([request], on: nextImage)
+    func track(nextImage: CGImage, orientation: CGImagePropertyOrientation) throws -> VNRectangleObservationRaw {
+        try handler.perform([request], on: nextImage, orientation: orientation)
         if let tracked = request.results?.first as? VNRectangleObservation {
             lastObservation = tracked
             request.inputObservation = tracked
@@ -143,24 +143,24 @@ final class OpticalFlowTrackerSession {
     private let request = VNTrackOpticalFlowRequest()
     private var usesImageHandlers = false
 
-    init(referenceImage: CGImage) throws {
+    init(referenceImage: CGImage, orientation: CGImagePropertyOrientation) throws {
         request.computationAccuracy = .medium
         request.outputPixelFormat = kCVPixelFormatType_TwoComponent32Float
-        try perform(on: referenceImage)
+        try perform(on: referenceImage, orientation: orientation)
     }
 
-    private func perform(on image: CGImage) throws {
+    private func perform(on image: CGImage, orientation: CGImagePropertyOrientation) throws {
         if usesImageHandlers {
-            let handler = VNImageRequestHandler(cgImage: image, options: [:])
+            let handler = VNImageRequestHandler(cgImage: image, orientation: orientation, options: [:])
             try handler.perform([request])
             return
         }
         do {
-            try sequenceHandler.perform([request], on: image)
+            try sequenceHandler.perform([request], on: image, orientation: orientation)
         } catch {
             if isTimestampRequirementError(error) {
                 usesImageHandlers = true
-                let handler = VNImageRequestHandler(cgImage: image, options: [:])
+                let handler = VNImageRequestHandler(cgImage: image, orientation: orientation, options: [:])
                 try handler.perform([request])
                 return
             }
@@ -168,8 +168,8 @@ final class OpticalFlowTrackerSession {
         }
     }
 
-    func track(nextImage: CGImage) throws -> VNSegmentationMaskRaw {
-        try perform(on: nextImage)
+    func track(nextImage: CGImage, orientation: CGImagePropertyOrientation) throws -> VNSegmentationMaskRaw {
+        try perform(on: nextImage, orientation: orientation)
         guard let observation = request.results?.first else {
             return VNSegmentationMaskRaw(width: 0, height: 0, bytes_per_row: 0, bytes: nil)
         }
@@ -183,22 +183,22 @@ final class TranslationalImageTrackerSession {
     private let request = VNTrackTranslationalImageRegistrationRequest()
     private var usesImageHandlers = false
 
-    init(referenceImage: CGImage) throws {
-        try perform(on: referenceImage)
+    init(referenceImage: CGImage, orientation: CGImagePropertyOrientation) throws {
+        try perform(on: referenceImage, orientation: orientation)
     }
 
-    private func perform(on image: CGImage) throws {
+    private func perform(on image: CGImage, orientation: CGImagePropertyOrientation) throws {
         if usesImageHandlers {
-            let handler = VNImageRequestHandler(cgImage: image, options: [:])
+            let handler = VNImageRequestHandler(cgImage: image, orientation: orientation, options: [:])
             try handler.perform([request])
             return
         }
         do {
-            try sequenceHandler.perform([request], on: image)
+            try sequenceHandler.perform([request], on: image, orientation: orientation)
         } catch {
             if isTimestampRequirementError(error) {
                 usesImageHandlers = true
-                let handler = VNImageRequestHandler(cgImage: image, options: [:])
+                let handler = VNImageRequestHandler(cgImage: image, orientation: orientation, options: [:])
                 try handler.perform([request])
                 return
             }
@@ -206,8 +206,8 @@ final class TranslationalImageTrackerSession {
         }
     }
 
-    func track(nextImage: CGImage) throws -> VNTranslationalAlignmentRaw {
-        try perform(on: nextImage)
+    func track(nextImage: CGImage, orientation: CGImagePropertyOrientation) throws -> VNTranslationalAlignmentRaw {
+        try perform(on: nextImage, orientation: orientation)
         guard let observation = request.results?.first else {
             return VNTranslationalAlignmentRaw(tx: 0, ty: 0)
         }
@@ -224,22 +224,22 @@ final class HomographicImageTrackerSession {
     private let request = VNTrackHomographicImageRegistrationRequest()
     private var usesImageHandlers = false
 
-    init(referenceImage: CGImage) throws {
-        try perform(on: referenceImage)
+    init(referenceImage: CGImage, orientation: CGImagePropertyOrientation) throws {
+        try perform(on: referenceImage, orientation: orientation)
     }
 
-    private func perform(on image: CGImage) throws {
+    private func perform(on image: CGImage, orientation: CGImagePropertyOrientation) throws {
         if usesImageHandlers {
-            let handler = VNImageRequestHandler(cgImage: image, options: [:])
+            let handler = VNImageRequestHandler(cgImage: image, orientation: orientation, options: [:])
             try handler.perform([request])
             return
         }
         do {
-            try sequenceHandler.perform([request], on: image)
+            try sequenceHandler.perform([request], on: image, orientation: orientation)
         } catch {
             if isTimestampRequirementError(error) {
                 usesImageHandlers = true
-                let handler = VNImageRequestHandler(cgImage: image, options: [:])
+                let handler = VNImageRequestHandler(cgImage: image, orientation: orientation, options: [:])
                 try handler.perform([request])
                 return
             }
@@ -247,8 +247,8 @@ final class HomographicImageTrackerSession {
         }
     }
 
-    func track(nextImage: CGImage) throws -> VNHomographicAlignmentRaw {
-        try perform(on: nextImage)
+    func track(nextImage: CGImage, orientation: CGImagePropertyOrientation) throws -> VNHomographicAlignmentRaw {
+        try perform(on: nextImage, orientation: orientation)
         guard let observation = request.results?.first else {
             return VNIdentityHomographicAlignmentRaw.value
         }
@@ -281,7 +281,7 @@ public func vn_object_tracker_create(
         return VN_IMAGE_LOAD_FAILED
     }
     do {
-        let tracker = try ObjectTrackerSession(initialImage: image, initialBoundingBox: initialBoundingBox.pointee)
+        let tracker = try ObjectTrackerSession(initialImage: image, orientation: imageOrientation(path: path), initialBoundingBox: initialBoundingBox.pointee)
         outHandle.pointee = Unmanaged.passRetained(tracker).toOpaque()
         return VN_OK
     } catch {
@@ -310,7 +310,7 @@ public func vn_object_tracker_track(
     }
     let tracker = Unmanaged<ObjectTrackerSession>.fromOpaque(handle).takeUnretainedValue()
     do {
-        outBoundingBox.pointee = try tracker.track(nextImage: image)
+        outBoundingBox.pointee = try tracker.track(nextImage: image, orientation: imageOrientation(path: path))
         return VN_OK
     } catch {
         outErrorMessage?.pointee = ffiString("object tracker track failed: \(error.localizedDescription)")
@@ -343,7 +343,7 @@ public func vn_rectangle_tracker_create(
         return VN_IMAGE_LOAD_FAILED
     }
     do {
-        let tracker = try RectangleTrackerSession(initialImage: image, initialObservation: initialObservation.pointee)
+        let tracker = try RectangleTrackerSession(initialImage: image, orientation: imageOrientation(path: path), initialObservation: initialObservation.pointee)
         outHandle.pointee = Unmanaged.passRetained(tracker).toOpaque()
         return VN_OK
     } catch {
@@ -376,7 +376,7 @@ public func vn_rectangle_tracker_track(
     }
     let tracker = Unmanaged<RectangleTrackerSession>.fromOpaque(handle).takeUnretainedValue()
     do {
-        outObservation.pointee = try tracker.track(nextImage: image)
+        outObservation.pointee = try tracker.track(nextImage: image, orientation: imageOrientation(path: path))
         return VN_OK
     } catch {
         outErrorMessage?.pointee = ffiString("rectangle tracker track failed: \(error.localizedDescription)")

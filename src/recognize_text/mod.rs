@@ -303,3 +303,31 @@ pub fn _test_helper_render_text_png(
     }
     Ok(())
 }
+
+#[doc(hidden)]
+#[allow(clippy::missing_errors_doc)]
+pub fn _test_helper_render_sideways_text_jpeg(
+    text: &str,
+    width: i32,
+    height: i32,
+    path: &Path,
+) -> Result<(), VisionError> {
+    let text_c = CString::new(text).map_err(|e| VisionError::InvalidArgument(e.to_string()))?;
+    let path_c = CString::new(path.to_string_lossy().as_ref())
+        .map_err(|e| VisionError::InvalidArgument(e.to_string()))?;
+    let status = unsafe {
+        ffi::vn_test_helper_render_sideways_text_jpeg(
+            text_c.as_ptr(),
+            width,
+            height,
+            path_c.as_ptr(),
+        )
+    };
+    if status != ffi::status::OK {
+        return Err(VisionError::Unknown {
+            code: status,
+            message: "render helper failed".into(),
+        });
+    }
+    Ok(())
+}

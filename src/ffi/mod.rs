@@ -273,6 +273,7 @@ extern "C" {
 
     pub fn vn_image_request_handler_perform_text_request(
         image_path: *const c_char,
+        orientation: u32,
         recognition_level: i32,
         uses_language_correction: bool,
         prefer_background_processing: bool,
@@ -495,8 +496,11 @@ extern "C" {
         out_error_message: *mut *mut c_char,
     ) -> i32;
 
-    pub fn vn_scaled_foreground_mask_finish(handle: *mut c_void, dst: *mut u8, dst_len: usize)
-        -> i32;
+    pub fn vn_scaled_foreground_mask_finish(
+        handle: *mut c_void,
+        dst: *mut u8,
+        dst_len: usize,
+    ) -> i32;
 
     pub fn vn_segmentation_mask_free(mask: *mut SegmentationMaskRaw);
 
@@ -588,6 +592,13 @@ extern "C" {
     );
 
     pub fn vn_test_helper_render_text_png(
+        text: *const c_char,
+        width: i32,
+        height: i32,
+        output_path: *const c_char,
+    ) -> i32;
+
+    pub fn vn_test_helper_render_sideways_text_jpeg(
         text: *const c_char,
         width: i32,
         height: i32,

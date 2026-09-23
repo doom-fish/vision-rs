@@ -26,7 +26,7 @@ public func vn_optical_flow_tracker_create(
         return VN_IMAGE_LOAD_FAILED
     }
     do {
-        let tracker = try OpticalFlowTrackerSession(referenceImage: image)
+        let tracker = try OpticalFlowTrackerSession(referenceImage: image, orientation: imageOrientation(path: path))
         outHandle.pointee = Unmanaged.passRetained(tracker).toOpaque()
         return VN_OK
     } catch {
@@ -59,7 +59,7 @@ public func vn_optical_flow_tracker_track(
     }
     let tracker = Unmanaged<OpticalFlowTrackerSession>.fromOpaque(handle).takeUnretainedValue()
     do {
-        outMask.pointee = try tracker.track(nextImage: image)
+        outMask.pointee = try tracker.track(nextImage: image, orientation: imageOrientation(path: path))
         return VN_OK
     } catch {
         outErrorMessage?.pointee = ffiString("optical flow tracker track failed: \(error.localizedDescription)")
@@ -92,7 +92,7 @@ public func vn_translational_image_tracker_create(
         return VN_IMAGE_LOAD_FAILED
     }
     do {
-        let tracker = try TranslationalImageTrackerSession(referenceImage: image)
+        let tracker = try TranslationalImageTrackerSession(referenceImage: image, orientation: imageOrientation(path: path))
         outHandle.pointee = Unmanaged.passRetained(tracker).toOpaque()
         return VN_OK
     } catch {
@@ -125,7 +125,7 @@ public func vn_translational_image_tracker_track(
     }
     let tracker = Unmanaged<TranslationalImageTrackerSession>.fromOpaque(handle).takeUnretainedValue()
     do {
-        outAlignment.pointee = try tracker.track(nextImage: image)
+        outAlignment.pointee = try tracker.track(nextImage: image, orientation: imageOrientation(path: path))
         return VN_OK
     } catch {
         outErrorMessage?.pointee = ffiString("translational tracker track failed: \(error.localizedDescription)")
@@ -158,7 +158,7 @@ public func vn_homographic_image_tracker_create(
         return VN_IMAGE_LOAD_FAILED
     }
     do {
-        let tracker = try HomographicImageTrackerSession(referenceImage: image)
+        let tracker = try HomographicImageTrackerSession(referenceImage: image, orientation: imageOrientation(path: path))
         outHandle.pointee = Unmanaged.passRetained(tracker).toOpaque()
         return VN_OK
     } catch {
@@ -191,7 +191,7 @@ public func vn_homographic_image_tracker_track(
     }
     let tracker = Unmanaged<HomographicImageTrackerSession>.fromOpaque(handle).takeUnretainedValue()
     do {
-        outAlignment.pointee = try tracker.track(nextImage: image)
+        outAlignment.pointee = try tracker.track(nextImage: image, orientation: imageOrientation(path: path))
         return VN_OK
     } catch {
         outErrorMessage?.pointee = ffiString("homographic tracker track failed: \(error.localizedDescription)")

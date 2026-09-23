@@ -33,7 +33,7 @@ public func vn_generate_image_feature_print_in_path(
         outErrorMessage?.pointee = ffiString("could not load image at \(pathStr)")
         return VN_IMAGE_LOAD_FAILED
     }
-    let handler = VNImageRequestHandler(cgImage: cgImage, options: [:])
+    let handler = VNImageRequestHandler(cgImage: cgImage, orientation: imageOrientation(path: pathStr), options: [:])
     let request = VNGenerateImageFeaturePrintRequest()
     do { try handler.perform([request]) } catch {
         outErrorMessage?.pointee = ffiString("feature print request failed: \(error.localizedDescription)")
@@ -88,7 +88,7 @@ public func vn_detect_human_rectangles_in_path(
         outArray.pointee = nil; outCount.pointee = 0
         return VN_IMAGE_LOAD_FAILED
     }
-    let handler = VNImageRequestHandler(cgImage: cgImage, options: [:])
+    let handler = VNImageRequestHandler(cgImage: cgImage, orientation: imageOrientation(path: pathStr), options: [:])
     let request = VNDetectHumanRectanglesRequest()
     if #available(macOS 12.0, *) {
         request.upperBodyOnly = upperBodyOnly
@@ -153,7 +153,7 @@ public func vn_calculate_aesthetics_scores_in_path(
         outHasValue.pointee = false
         return VN_IMAGE_LOAD_FAILED
     }
-    let handler = VNImageRequestHandler(cgImage: cgImage, options: [:])
+    let handler = VNImageRequestHandler(cgImage: cgImage, orientation: imageOrientation(path: pathStr), options: [:])
     if #available(macOS 15.0, *) {
         let request = VNCalculateImageAestheticsScoresRequest()
         do { try handler.perform([request]) } catch {
@@ -198,7 +198,7 @@ public func vn_detect_face_capture_quality_in_path(
         outArray.pointee = nil; outCount.pointee = 0
         return VN_IMAGE_LOAD_FAILED
     }
-    let handler = VNImageRequestHandler(cgImage: cgImage, options: [:])
+    let handler = VNImageRequestHandler(cgImage: cgImage, orientation: imageOrientation(path: pathStr), options: [:])
     let request = VNDetectFaceCaptureQualityRequest()
     do { try handler.perform([request]) } catch {
         outErrorMessage?.pointee = ffiString("face quality request failed: \(error.localizedDescription)")

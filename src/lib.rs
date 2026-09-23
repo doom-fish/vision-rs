@@ -146,10 +146,10 @@ pub use sdk::{
 
 #[cfg(feature = "recognize_text")]
 pub use processing::{
-    ImageRequestHandler, Observation, RecognizedTextObservation, Request, RequestKind,
-    SequenceRequestHandler, TimeRange, VideoCadence, VideoProcessingOptions, VideoProcessor,
-    VideoProcessorCadence, VideoProcessorFrameRateCadence, VideoProcessorRequestProcessingOptions,
-    VideoProcessorTimeIntervalCadence,
+    ImageOrientation, ImageRequestHandler, Observation, RecognizedTextObservation, Request,
+    RequestKind, SequenceRequestHandler, TimeRange, VideoCadence, VideoProcessingOptions,
+    VideoProcessor, VideoProcessorCadence, VideoProcessorFrameRateCadence,
+    VideoProcessorRequestProcessingOptions, VideoProcessorTimeIntervalCadence,
 };
 
 #[cfg(feature = "recognize_text")]
@@ -350,9 +350,9 @@ pub mod prelude {
     };
     #[cfg(feature = "recognize_text")]
     pub use crate::processing::{
-        ImageRequestHandler, Observation, RecognizedTextObservation, Request, RequestKind,
-        SequenceRequestHandler, TimeRange, VideoCadence, VideoProcessingOptions, VideoProcessor,
-        VideoProcessorCadence, VideoProcessorFrameRateCadence,
+        ImageOrientation, ImageRequestHandler, Observation, RecognizedTextObservation, Request,
+        RequestKind, SequenceRequestHandler, TimeRange, VideoCadence, VideoProcessingOptions,
+        VideoProcessor, VideoProcessorCadence, VideoProcessorFrameRateCadence,
         VideoProcessorRequestProcessingOptions, VideoProcessorTimeIntervalCadence,
     };
     #[cfg(feature = "recognize_text")]

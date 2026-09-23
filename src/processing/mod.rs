@@ -211,10 +211,23 @@ impl From<RecognizedTextObservation> for RecognizedText {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum ImageOrientation {
+    Up = 1,
+    UpMirrored = 2,
+    Down = 3,
+    DownMirrored = 4,
+    LeftMirrored = 5,
+    Right = 6,
+    RightMirrored = 7,
+    Left = 8,
+}
+
 /// Safe wrapper around `VNImageRequestHandler`.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ImageRequestHandler {
     image_path: PathBuf,
+    orientation: Option<ImageOrientation>,
 }
 
 impl ImageRequestHandler {
@@ -223,7 +236,19 @@ impl ImageRequestHandler {
     pub fn new(image_path: impl AsRef<Path>) -> Self {
         Self {
             image_path: image_path.as_ref().to_path_buf(),
+            orientation: None,
         }
+    }
+
+    #[must_use]
+    pub const fn with_orientation(mut self, orientation: ImageOrientation) -> Self {
+        self.orientation = Some(orientation);
+        self
+    }
+
+    #[must_use]
+    pub const fn orientation(&self) -> Option<ImageOrientation> {
+        self.orientation
     }
 
     /// Image-option keys accepted by `VNImageRequestHandler`.
@@ -250,6 +275,7 @@ impl ImageRequestHandler {
         let status = unsafe {
             ffi::vn_image_request_handler_perform_text_request(
                 image_c.as_ptr(),
+                self.orientation.map_or(0, |orientation| orientation as u32),
                 request.recognition_level_raw(),
                 request.uses_language_correction,
                 request.prefer_background_processing,
@@ -285,7 +311,8 @@ impl SequenceRequestHandler {
         let mut handle: *mut c_void = ptr::null_mut();
         let mut err_msg: *mut c_char = ptr::null_mut();
         // SAFETY: all pointer arguments are valid stack locations or bridge-owned handles; strings are valid C strings for the duration of the call.
-        let status = unsafe { ffi::vn_sequence_request_handler_create(&raw mut handle, &raw mut err_msg) };
+        let status =
+            unsafe { ffi::vn_sequence_request_handler_create(&raw mut handle, &raw mut err_msg) };
         if status != ffi::status::OK {
             // SAFETY: the error pointer is either null or a bridge-allocated C string; `from_swift` frees it.
             return Err(unsafe { from_swift(status, err_msg) });
