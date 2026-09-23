@@ -217,22 +217,6 @@ pub struct SegmentationMaskRaw {
     pub bytes: *mut c_void,
 }
 
-/// Result container for async array operations. Freed by `vn_async_array_result_free`.
-#[repr(C)]
-pub struct AsyncArrayResultRaw {
-    pub array: *mut c_void,
-    pub count: usize,
-}
-
-/// Result container for async segmentation operations. Freed by `vn_async_seg_result_free`.
-#[repr(C)]
-pub struct AsyncSegResultRaw {
-    pub width: usize,
-    pub height: usize,
-    pub bytes_per_row: usize,
-    pub bytes: *mut u8,
-}
-
 /// Mirrors `VNCoreMLFeatureValueRaw` in the Swift bridge. Layout-compatible.
 #[repr(C)]
 pub struct CoreMLFeatureValueRaw {
@@ -559,34 +543,6 @@ extern "C" {
     ) -> i32;
 
     pub fn vn_coreml_feature_value_free(feature: *mut CoreMLFeatureValueRaw);
-
-    // ---- async API ----
-    pub fn vn_async_array_result_free(ptr: *mut c_void);
-    pub fn vn_async_seg_result_free(ptr: *mut c_void);
-
-    pub fn vn_recognize_text_in_path_async(
-        path: *const c_char,
-        recognition_level: i32,
-        uses_language_correction: bool,
-        cb: extern "C" fn(*const c_void, *const i8, *mut c_void),
-        ctx: *mut c_void,
-    );
-    pub fn vn_detect_faces_in_path_async(
-        path: *const c_char,
-        cb: extern "C" fn(*const c_void, *const i8, *mut c_void),
-        ctx: *mut c_void,
-    );
-    pub fn vn_detect_barcodes_in_path_async(
-        path: *const c_char,
-        cb: extern "C" fn(*const c_void, *const i8, *mut c_void),
-        ctx: *mut c_void,
-    );
-    pub fn vn_generate_person_segmentation_async(
-        path: *const c_char,
-        quality_level: i32,
-        cb: extern "C" fn(*const c_void, *const i8, *mut c_void),
-        ctx: *mut c_void,
-    );
 
     pub fn vn_test_helper_render_text_png(
         text: *const c_char,
@@ -915,8 +871,6 @@ mod layout_asserts {
     assert_layout!(AestheticsScoresRaw, 8, 4);
     assert_layout!(FaceQualityRaw, 48, 8);
     assert_layout!(SegmentationMaskRaw, 32, 8);
-    assert_layout!(AsyncArrayResultRaw, 16, 8);
-    assert_layout!(AsyncSegResultRaw, 32, 8);
     assert_layout!(CoreMLFeatureValueRaw, 80, 8);
     assert_layout!(AnimalJointRaw, 32, 8);
     assert_layout!(HumanJoint3DRaw, 48, 8);
@@ -960,8 +914,6 @@ pub const fn verify_ffi_layout() -> bool {
         && check!(AestheticsScoresRaw, 8, 4)
         && check!(FaceQualityRaw, 48, 8)
         && check!(SegmentationMaskRaw, 32, 8)
-        && check!(AsyncArrayResultRaw, 16, 8)
-        && check!(AsyncSegResultRaw, 32, 8)
         && check!(CoreMLFeatureValueRaw, 80, 8)
         && check!(AnimalJointRaw, 32, 8)
         && check!(HumanJoint3DRaw, 48, 8)

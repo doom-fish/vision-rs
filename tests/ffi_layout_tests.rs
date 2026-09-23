@@ -9,12 +9,12 @@
 use core::mem::{align_of, size_of};
 
 use apple_vision::ffi::{
-    verify_ffi_layout, AestheticsScoresRaw, AnimalJointRaw, AsyncArrayResultRaw, AsyncSegResultRaw,
-    ClassificationRaw, ContourRaw, CoreMLFeatureValueRaw, DetectedBarcodeRaw, DetectedFaceRaw,
-    FaceLandmarksRaw, FaceQualityRaw, FeaturePrintRaw, HomographicAlignmentRaw, HumanJoint3DRaw,
-    HumanObservationRaw, PoseObservationRaw, RecognizedAnimalRaw, RecognizedTextRaw,
-    RectangleObservationRaw, RequestObservationRaw, SaliencyRegionRaw, SegmentationMaskRaw,
-    SimpleRectRaw, TextObservationRaw, TrajectoryRaw, TranslationalAlignmentRaw,
+    verify_ffi_layout, AestheticsScoresRaw, AnimalJointRaw, ClassificationRaw, ContourRaw,
+    CoreMLFeatureValueRaw, DetectedBarcodeRaw, DetectedFaceRaw, FaceLandmarksRaw, FaceQualityRaw,
+    FeaturePrintRaw, HomographicAlignmentRaw, HumanJoint3DRaw, HumanObservationRaw,
+    PoseObservationRaw, RecognizedAnimalRaw, RecognizedTextRaw, RectangleObservationRaw,
+    RequestObservationRaw, SaliencyRegionRaw, SegmentationMaskRaw, SimpleRectRaw,
+    TextObservationRaw, TrajectoryRaw, TranslationalAlignmentRaw,
 };
 
 macro_rules! layout_test {
@@ -56,8 +56,6 @@ layout_test!(human_observation_layout, HumanObservationRaw, 40, 8);
 layout_test!(aesthetics_scores_layout, AestheticsScoresRaw, 8, 4);
 layout_test!(face_quality_layout, FaceQualityRaw, 48, 8);
 layout_test!(segmentation_mask_layout, SegmentationMaskRaw, 32, 8);
-layout_test!(async_array_result_layout, AsyncArrayResultRaw, 16, 8);
-layout_test!(async_seg_result_layout, AsyncSegResultRaw, 32, 8);
 layout_test!(core_ml_feature_value_layout, CoreMLFeatureValueRaw, 80, 8);
 layout_test!(animal_joint_layout, AnimalJointRaw, 32, 8);
 layout_test!(human_joint_3d_layout, HumanJoint3DRaw, 48, 8);

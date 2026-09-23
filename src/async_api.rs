@@ -29,16 +29,15 @@
 //! ```
 
 use std::{
-    ffi::{c_void, CString},
+    ffi::c_void,
     future::Future,
-    panic::AssertUnwindSafe,
     path::{Path, PathBuf},
     pin::Pin,
     task::{Context, Poll},
 };
 
-use doom_fish_utils::completion::{error_from_cstr, AsyncCompletion, AsyncCompletionFuture};
-use doom_fish_utils::panic_safe::log_callback_panic;
+use doom_fish_utils::completion::{AsyncCompletion, AsyncCompletionFuture};
+use doom_fish_utils::panic_safe::catch_user_panic_result;
 
 use crate::{error::VisionError, ffi};
 
@@ -49,53 +48,23 @@ use crate::coreml::{CoreMLFeatureValueObservation, CoreMLRequest};
 #[cfg(feature = "detect_barcodes")]
 use crate::detect_barcodes::DetectedBarcode;
 #[cfg(feature = "detect_faces")]
-use crate::detect_faces::DetectedFace;
+use crate::detect_faces::{DetectedFace, FaceDetector};
 use crate::human_body_pose_3d::HumanBodyPose3DObservation;
 #[cfg(feature = "recognize_text")]
-use crate::recognize_text::{RecognitionLevel, RecognizedText};
+use crate::recognize_text::{RecognitionLevel, RecognizedText, TextRecognizer};
 #[cfg(feature = "segmentation")]
 use crate::segmentation::{SegmentationMask, SegmentationQuality};
 use crate::trajectories::Trajectory;
 
-enum FutureState<T> {
-    Ready(Option<Result<T, VisionError>>),
-    Pending(AsyncCompletionFuture<T>),
-}
+const QOS_CLASS_USER_INITIATED: isize = 0x19;
 
-impl<T> FutureState<T> {
-    const fn ready_err(error: VisionError) -> Self {
-        Self::Ready(Some(Err(error)))
-    }
-
-    const fn pending(future: AsyncCompletionFuture<T>) -> Self {
-        Self::Pending(future)
-    }
-}
-
-impl<T: Unpin> Future for FutureState<T> {
-    type Output = Result<T, VisionError>;
-
-    fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
-        match self.as_mut().get_mut() {
-            Self::Ready(result) => Poll::Ready(
-                result
-                    .take()
-                    .expect("async Vision future polled after completion"),
-            ),
-            Self::Pending(future) => Pin::new(future)
-                .poll(cx)
-                .map(|result| result.map_err(VisionError::RequestFailed)),
-        }
-    }
-}
-
-fn path_to_cstring(path: impl AsRef<Path>) -> Result<CString, VisionError> {
-    let path_str = path
-        .as_ref()
-        .to_str()
-        .ok_or_else(|| VisionError::InvalidArgument("non-UTF-8 path".into()))?;
-    CString::new(path_str)
-        .map_err(|error| VisionError::InvalidArgument(format!("path NUL byte: {error}")))
+extern "C" {
+    fn dispatch_get_global_queue(identifier: isize, flags: usize) -> *mut c_void;
+    fn dispatch_async_f(
+        queue: *mut c_void,
+        context: *mut c_void,
+        work: unsafe extern "C" fn(*mut c_void),
+    );
 }
 
 struct WorkerFuture<T> {
@@ -123,17 +92,42 @@ impl<T> Future for WorkerFuture<T> {
     }
 }
 
-fn run_sync_on_worker<T, F>(work: F) -> WorkerFuture<T>
+struct Job<F> {
+    work: F,
+    completion: *mut c_void,
+}
+
+unsafe extern "C" fn run_job<T, F>(context: *mut c_void)
 where
     T: Send + 'static,
     F: FnOnce() -> Result<T, VisionError> + Send + 'static,
 {
-    let (future, ctx) = AsyncCompletion::<Result<T, VisionError>>::create();
-    let ctx = ctx as usize;
-    std::thread::spawn(move || unsafe {
-        AsyncCompletion::complete_ok(ctx as *mut c_void, work());
+    let job = unsafe { Box::from_raw(context.cast::<Job<F>>()) };
+    let Job { work, completion } = *job;
+    let result = catch_user_panic_result("async Vision request", work).unwrap_or_else(|| {
+        Err(VisionError::Unknown {
+            code: ffi::status::UNKNOWN,
+            message: "the Vision request panicked".into(),
+        })
     });
-    WorkerFuture { inner: future }
+    unsafe { AsyncCompletion::<Result<T, VisionError>>::complete_ok(completion, result) };
+}
+
+fn run_on_dispatch_queue<T, F>(work: F) -> WorkerFuture<T>
+where
+    T: Send + 'static,
+    F: FnOnce() -> Result<T, VisionError> + Send + 'static,
+{
+    let (inner, completion) = AsyncCompletion::<Result<T, VisionError>>::create();
+    let job = Box::into_raw(Box::new(Job { work, completion })).cast::<c_void>();
+    unsafe {
+        dispatch_async_f(
+            dispatch_get_global_queue(QOS_CLASS_USER_INITIATED, 0),
+            job,
+            run_job::<T, F>,
+        );
+    }
+    WorkerFuture { inner }
 }
 
 #[cfg(feature = "coreml")]
@@ -198,7 +192,7 @@ impl AsyncCoreMLRequest {
         let request = self.request.clone();
         let path = path.as_ref().to_path_buf();
         CoreMLClassifyFuture {
-            inner: run_sync_on_worker(move || request.classify(path.as_path())),
+            inner: run_on_dispatch_queue(move || request.classify(path.as_path())),
         }
     }
 
@@ -207,7 +201,7 @@ impl AsyncCoreMLRequest {
         let request = self.request.clone();
         let path = path.as_ref().to_path_buf();
         CoreMLFeatureValueFuture {
-            inner: run_sync_on_worker(move || request.feature_value(path.as_path())),
+            inner: run_on_dispatch_queue(move || request.feature_value(path.as_path())),
         }
     }
 }
@@ -244,7 +238,7 @@ impl AsyncDetectHumanBodyPose3D {
     pub fn detect_in_path(&self, path: impl AsRef<Path>) -> DetectHumanBodyPose3DFuture {
         let path = path.as_ref().to_path_buf();
         DetectHumanBodyPose3DFuture {
-            inner: run_sync_on_worker(move || {
+            inner: run_on_dispatch_queue(move || {
                 crate::human_body_pose_3d::detect_human_body_pose_3d_observations(path.as_path())
             }),
         }
@@ -286,7 +280,7 @@ impl AsyncDetectTrajectories {
         let path: PathBuf = path.as_ref().to_path_buf();
         let trajectory_length = self.trajectory_length;
         DetectTrajectoriesFuture {
-            inner: run_sync_on_worker(move || {
+            inner: run_on_dispatch_queue(move || {
                 crate::trajectories::detect_trajectories(path.as_path(), trajectory_length)
             }),
         }
@@ -297,114 +291,10 @@ impl AsyncDetectTrajectories {
 // Text Recognition Future
 // ============================================================================
 
-/// Parse the raw text-recognition result coming from the Swift bridge.
-///
-/// Returns `Ok(results)` on success or `Err(message)` on any Swift-reported error.
-/// Frees the Swift-owned `result` allocation before returning.
-///
-/// # Safety
-///
-/// `result` must be either null or a valid pointer to an `AsyncArrayResultRaw` struct
-/// produced by the Swift bridge whose `array` field, when non-null, points to
-/// `count` valid `RecognizedTextRaw` elements.  `error` must be either null or a
-/// valid null-terminated C string owned by the bridge.
-#[cfg(feature = "recognize_text")]
-unsafe fn parse_text_result(
-    result: *const c_void,
-    error: *const i8,
-) -> Result<Vec<RecognizedText>, String> {
-    if !error.is_null() {
-        // SAFETY: caller guarantees `error` is a valid C string when non-null.
-        return Err(unsafe { error_from_cstr(error) });
-    }
-    if result.is_null() {
-        return Err("text recognition returned null".into());
-    }
-
-    // SAFETY: caller guarantees `result` is a valid `AsyncArrayResultRaw` pointer.
-    let raw = unsafe { &*(result.cast::<ffi::AsyncArrayResultRaw>()) };
-    let texts = if raw.array.is_null() || raw.count == 0 {
-        Vec::new()
-    } else {
-        let typed = raw.array.cast::<ffi::RecognizedTextRaw>();
-        let mut out = Vec::with_capacity(raw.count);
-        for index in 0..raw.count {
-            // SAFETY: `typed` is valid for `raw.count` elements; `index` is in bounds.
-            let entry = unsafe { &*typed.add(index) };
-            let text = if entry.text.is_null() {
-                String::new()
-            } else {
-                // SAFETY: `entry.text` is a valid C string when non-null.
-                unsafe { std::ffi::CStr::from_ptr(entry.text) }
-                    .to_string_lossy()
-                    .into_owned()
-            };
-            out.push(RecognizedText {
-                text,
-                confidence: entry.confidence,
-                bounding_box: crate::recognize_text::BoundingBox {
-                    x: entry.bbox_x,
-                    y: entry.bbox_y,
-                    width: entry.bbox_w,
-                    height: entry.bbox_h,
-                },
-            });
-        }
-        // SAFETY: `raw.array` and `raw.count` are the pair produced by the Swift bridge;
-        // this is the unique call site that frees them.
-        unsafe { ffi::vn_recognized_text_free(raw.array, raw.count) };
-        out
-    };
-
-    // SAFETY: `result` is the non-null allocation produced by the Swift async bridge;
-    // freeing here is safe because this is the unique call site for this allocation.
-    unsafe { ffi::vn_async_array_result_free(result.cast_mut()) };
-    Ok(texts)
-}
-
-/// `extern "C"` callback invoked by the Swift bridge when text recognition completes.
-///
-/// # Safety contract
-///
-/// Called from a Swift `DispatchQueue`; all pointer arguments follow the
-/// Swift-bridge protocol documented on [`parse_text_result`].  The body is
-/// wrapped in `catch_unwind` so that an unexpected Rust panic does not unwind
-/// through the Swift/C ABI (which is undefined behaviour).  On panic the
-/// future is completed with an error rather than left permanently pending.
-#[cfg(feature = "recognize_text")]
-extern "C" fn text_result_cb(result: *const c_void, error: *const i8, ctx: *mut c_void) {
-    // SAFETY: `result` and `error` are valid for the duration of this call per
-    // the Swift bridge contract. `AssertUnwindSafe` is correct here because the
-    // raw pointers are not accessed after unwinding.
-    let outcome =
-        std::panic::catch_unwind(AssertUnwindSafe(|| unsafe { parse_text_result(result, error) }));
-    match outcome {
-        Ok(Ok(texts)) => {
-            // SAFETY: `ctx` is the `Arc<AsyncCompletionInner<_>>` context from
-            // `AsyncCompletion::create()`; it is valid and unconsumed at this point.
-            unsafe { AsyncCompletion::complete_ok(ctx, texts) };
-        }
-        Ok(Err(msg)) => {
-            // SAFETY: same as above.
-            unsafe { AsyncCompletion::<Vec<RecognizedText>>::complete_err(ctx, msg) };
-        }
-        Err(payload) => {
-            log_callback_panic("text_result_cb", payload.as_ref());
-            // SAFETY: same as above.
-            unsafe {
-                AsyncCompletion::<Vec<RecognizedText>>::complete_err(
-                    ctx,
-                    "panic in Vision text_result_cb".into(),
-                );
-            };
-        }
-    }
-}
-
 /// Future resolving to a `Vec<RecognizedText>`.
 #[cfg(feature = "recognize_text")]
 pub struct RecognizeTextFuture {
-    inner: FutureState<Vec<RecognizedText>>,
+    inner: WorkerFuture<Vec<RecognizedText>>,
 }
 
 #[cfg(feature = "recognize_text")]
@@ -456,32 +346,14 @@ impl AsyncRecognizeText {
     ///
     /// # Errors
     ///
-    /// Returns [`VisionError::RequestFailed`] if Vision fails, or
-    /// [`VisionError::InvalidArgument`] if the path cannot be encoded.
+    /// Resolves to the same errors as [`TextRecognizer::recognize_in_path`].
     pub fn recognize_in_path(&self, path: impl AsRef<Path>) -> RecognizeTextFuture {
-        match path_to_cstring(path) {
-            Err(error) => RecognizeTextFuture {
-                inner: FutureState::ready_err(error),
-            },
-            Ok(path_c) => {
-                let (future, ctx) = AsyncCompletion::create();
-                // SAFETY: `path_c` is a valid null-terminated C string for the duration of
-                // this call. `text_result_cb` satisfies the callback contract: single-fire,
-                // completes the context exactly once. `ctx` is the `Arc` context from
-                // `AsyncCompletion::create()` cast to `*mut c_void`.
-                unsafe {
-                    ffi::vn_recognize_text_in_path_async(
-                        path_c.as_ptr(),
-                        self.recognition_level.as_raw(),
-                        self.uses_language_correction,
-                        text_result_cb,
-                        ctx,
-                    );
-                };
-                RecognizeTextFuture {
-                    inner: FutureState::pending(future),
-                }
-            }
+        let recognizer = TextRecognizer::new()
+            .with_recognition_level(self.recognition_level)
+            .with_language_correction(self.uses_language_correction);
+        let path = path.as_ref().to_path_buf();
+        RecognizeTextFuture {
+            inner: run_on_dispatch_queue(move || recognizer.recognize_in_path(path)),
         }
     }
 }
@@ -490,96 +362,9 @@ impl AsyncRecognizeText {
 // Face Detection Future
 // ============================================================================
 
-/// Parse the raw face-detection result from the Swift bridge.
-///
-/// # Safety
-///
-/// `result` must be either null or a valid `AsyncArrayResultRaw` pointer whose
-/// `array` field, when non-null, points to `count` valid `DetectedFaceRaw`
-/// elements.  `error` must be either null or a valid null-terminated C string.
-#[cfg(feature = "detect_faces")]
-unsafe fn parse_face_result(
-    result: *const c_void,
-    error: *const i8,
-) -> Result<Vec<DetectedFace>, String> {
-    if !error.is_null() {
-        // SAFETY: caller guarantees `error` is a valid C string when non-null.
-        return Err(unsafe { error_from_cstr(error) });
-    }
-    if result.is_null() {
-        return Err("face detection returned null".into());
-    }
-
-    // SAFETY: caller guarantees `result` is a valid `AsyncArrayResultRaw` pointer.
-    let raw = unsafe { &*(result.cast::<ffi::AsyncArrayResultRaw>()) };
-    let faces = if raw.array.is_null() || raw.count == 0 {
-        Vec::new()
-    } else {
-        let typed = raw.array.cast::<ffi::DetectedFaceRaw>();
-        let mut out = Vec::with_capacity(raw.count);
-        let nan_to_none = |value: f32| if value.is_nan() { None } else { Some(value) };
-        for index in 0..raw.count {
-            // SAFETY: `typed` is valid for `raw.count` elements; `index` is in bounds.
-            let entry = unsafe { &*typed.add(index) };
-            out.push(DetectedFace {
-                bounding_box: crate::recognize_text::BoundingBox {
-                    x: entry.bbox_x,
-                    y: entry.bbox_y,
-                    width: entry.bbox_w,
-                    height: entry.bbox_h,
-                },
-                confidence: entry.confidence,
-                roll: nan_to_none(entry.roll),
-                yaw: nan_to_none(entry.yaw),
-                pitch: nan_to_none(entry.pitch),
-            });
-        }
-        // SAFETY: `raw.array` and `raw.count` are the pair produced by the Swift bridge;
-        // this is the unique call site that frees them.
-        unsafe { ffi::vn_detected_faces_free(raw.array, raw.count) };
-        out
-    };
-
-    // SAFETY: `result` is the non-null allocation produced by the Swift async bridge.
-    unsafe { ffi::vn_async_array_result_free(result.cast_mut()) };
-    Ok(faces)
-}
-
-/// `extern "C"` callback invoked by the Swift bridge when face detection completes.
-///
-/// Wrapped in `catch_unwind`; on panic the future is resolved with an error.
-#[cfg(feature = "detect_faces")]
-extern "C" fn face_result_cb(result: *const c_void, error: *const i8, ctx: *mut c_void) {
-    // SAFETY: `result` and `error` are valid for the duration of this call per the bridge
-    // contract. `AssertUnwindSafe` is correct: raw pointers are not accessed after unwinding.
-    let outcome =
-        std::panic::catch_unwind(AssertUnwindSafe(|| unsafe { parse_face_result(result, error) }));
-    match outcome {
-        Ok(Ok(faces)) => {
-            // SAFETY: `ctx` is the `Arc<AsyncCompletionInner<_>>` context from `AsyncCompletion::create()`.
-            unsafe { AsyncCompletion::complete_ok(ctx, faces) };
-        }
-        Ok(Err(msg)) => {
-            // SAFETY: same as above.
-            unsafe { AsyncCompletion::<Vec<DetectedFace>>::complete_err(ctx, msg) };
-        }
-        Err(payload) => {
-            log_callback_panic("face_result_cb", payload.as_ref());
-            // SAFETY: same as above.
-            unsafe {
-                AsyncCompletion::<Vec<DetectedFace>>::complete_err(
-                    ctx,
-                    "panic in Vision face_result_cb".into(),
-                );
-            };
-        }
-    }
-}
-
-/// Future resolving to a `Vec<DetectedFace>`.
 #[cfg(feature = "detect_faces")]
 pub struct DetectFacesFuture {
-    inner: FutureState<Vec<DetectedFace>>,
+    inner: WorkerFuture<Vec<DetectedFace>>,
 }
 
 #[cfg(feature = "detect_faces")]
@@ -598,7 +383,6 @@ impl Future for DetectFacesFuture {
     }
 }
 
-/// Async wrapper for `VNDetectFaceRectanglesRequest`.
 #[cfg(feature = "detect_faces")]
 #[derive(Debug, Clone, Copy, Default)]
 pub struct AsyncDetectFaces;
@@ -610,27 +394,10 @@ impl AsyncDetectFaces {
         Self
     }
 
-    /// Detect faces in the image at `path` asynchronously.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`VisionError::RequestFailed`] if Vision fails.
     pub fn detect_in_path(&self, path: impl AsRef<Path>) -> DetectFacesFuture {
-        match path_to_cstring(path) {
-            Err(error) => DetectFacesFuture {
-                inner: FutureState::ready_err(error),
-            },
-            Ok(path_c) => {
-                let (future, ctx) = AsyncCompletion::create();
-                // SAFETY: `path_c` is a valid C string. `face_result_cb` satisfies the
-                // single-fire callback contract and completes `ctx` exactly once.
-                unsafe {
-                    ffi::vn_detect_faces_in_path_async(path_c.as_ptr(), face_result_cb, ctx);
-                };
-                DetectFacesFuture {
-                    inner: FutureState::pending(future),
-                }
-            }
+        let path = path.as_ref().to_path_buf();
+        DetectFacesFuture {
+            inner: run_on_dispatch_queue(move || FaceDetector::new().detect_in_path(path)),
         }
     }
 }
@@ -639,110 +406,9 @@ impl AsyncDetectFaces {
 // Barcode Detection Future
 // ============================================================================
 
-/// Parse the raw barcode-detection result from the Swift bridge.
-///
-/// # Safety
-///
-/// `result` must be either null or a valid `AsyncArrayResultRaw` pointer whose
-/// `array` field, when non-null, points to `count` valid `DetectedBarcodeRaw`
-/// elements.  `error` must be either null or a valid null-terminated C string.
-#[cfg(feature = "detect_barcodes")]
-unsafe fn parse_barcode_result(
-    result: *const c_void,
-    error: *const i8,
-) -> Result<Vec<DetectedBarcode>, String> {
-    if !error.is_null() {
-        // SAFETY: caller guarantees `error` is a valid C string when non-null.
-        return Err(unsafe { error_from_cstr(error) });
-    }
-    if result.is_null() {
-        return Err("barcode detection returned null".into());
-    }
-
-    // SAFETY: caller guarantees `result` is a valid `AsyncArrayResultRaw` pointer.
-    let raw = unsafe { &*(result.cast::<ffi::AsyncArrayResultRaw>()) };
-    let barcodes = if raw.array.is_null() || raw.count == 0 {
-        Vec::new()
-    } else {
-        let typed = raw.array.cast::<ffi::DetectedBarcodeRaw>();
-        let mut out = Vec::with_capacity(raw.count);
-        for index in 0..raw.count {
-            // SAFETY: `typed` is valid for `raw.count` elements; `index` is in bounds.
-            let entry = unsafe { &*typed.add(index) };
-            let payload = if entry.payload.is_null() {
-                String::new()
-            } else {
-                // SAFETY: `entry.payload` is a valid C string when non-null.
-                unsafe { std::ffi::CStr::from_ptr(entry.payload) }
-                    .to_string_lossy()
-                    .into_owned()
-            };
-            let symbology = if entry.symbology.is_null() {
-                String::new()
-            } else {
-                // SAFETY: `entry.symbology` is a valid C string when non-null.
-                unsafe { std::ffi::CStr::from_ptr(entry.symbology) }
-                    .to_string_lossy()
-                    .into_owned()
-            };
-            out.push(DetectedBarcode {
-                payload,
-                symbology,
-                confidence: entry.confidence,
-                bounding_box: crate::recognize_text::BoundingBox {
-                    x: entry.bbox_x,
-                    y: entry.bbox_y,
-                    width: entry.bbox_w,
-                    height: entry.bbox_h,
-                },
-            });
-        }
-        // SAFETY: `raw.array` and `raw.count` are the Swift-bridge pair; unique free site.
-        unsafe { ffi::vn_detected_barcodes_free(raw.array, raw.count) };
-        out
-    };
-
-    // SAFETY: `result` is the non-null allocation produced by the Swift async bridge.
-    unsafe { ffi::vn_async_array_result_free(result.cast_mut()) };
-    Ok(barcodes)
-}
-
-/// `extern "C"` callback invoked by the Swift bridge when barcode detection completes.
-///
-/// Wrapped in `catch_unwind`; on panic the future is resolved with an error.
-#[cfg(feature = "detect_barcodes")]
-extern "C" fn barcode_result_cb(result: *const c_void, error: *const i8, ctx: *mut c_void) {
-    // SAFETY: `result` and `error` are valid for the duration of this call per the bridge
-    // contract. `AssertUnwindSafe` is correct: raw pointers are not accessed after unwinding.
-    let outcome = std::panic::catch_unwind(AssertUnwindSafe(|| unsafe {
-        parse_barcode_result(result, error)
-    }));
-    match outcome {
-        Ok(Ok(barcodes)) => {
-            // SAFETY: `ctx` is the `Arc<AsyncCompletionInner<_>>` context from `AsyncCompletion::create()`.
-            unsafe { AsyncCompletion::complete_ok(ctx, barcodes) };
-        }
-        Ok(Err(msg)) => {
-            // SAFETY: same as above.
-            unsafe { AsyncCompletion::<Vec<DetectedBarcode>>::complete_err(ctx, msg) };
-        }
-        Err(payload) => {
-            log_callback_panic("barcode_result_cb", payload.as_ref());
-            // SAFETY: same as above.
-            unsafe {
-                AsyncCompletion::<Vec<DetectedBarcode>>::complete_err(
-                    ctx,
-                    "panic in Vision barcode_result_cb".into(),
-                );
-            };
-        }
-    }
-}
-
-/// Future resolving to a `Vec<DetectedBarcode>`.
 #[cfg(feature = "detect_barcodes")]
 pub struct DetectBarcodesFuture {
-    inner: FutureState<Vec<DetectedBarcode>>,
+    inner: WorkerFuture<Vec<DetectedBarcode>>,
 }
 
 #[cfg(feature = "detect_barcodes")]
@@ -762,7 +428,6 @@ impl Future for DetectBarcodesFuture {
     }
 }
 
-/// Async wrapper for `VNDetectBarcodesRequest`.
 #[cfg(feature = "detect_barcodes")]
 #[derive(Debug, Clone, Copy, Default)]
 pub struct AsyncDetectBarcodes;
@@ -774,27 +439,12 @@ impl AsyncDetectBarcodes {
         Self
     }
 
-    /// Detect barcodes in the image at `path` asynchronously.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`VisionError::RequestFailed`] if Vision fails.
     pub fn detect_in_path(&self, path: impl AsRef<Path>) -> DetectBarcodesFuture {
-        match path_to_cstring(path) {
-            Err(error) => DetectBarcodesFuture {
-                inner: FutureState::ready_err(error),
-            },
-            Ok(path_c) => {
-                let (future, ctx) = AsyncCompletion::create();
-                // SAFETY: `path_c` is a valid C string. `barcode_result_cb` satisfies the
-                // single-fire callback contract and completes `ctx` exactly once.
-                unsafe {
-                    ffi::vn_detect_barcodes_in_path_async(path_c.as_ptr(), barcode_result_cb, ctx);
-                };
-                DetectBarcodesFuture {
-                    inner: FutureState::pending(future),
-                }
-            }
+        let path = path.as_ref().to_path_buf();
+        DetectBarcodesFuture {
+            inner: run_on_dispatch_queue(move || {
+                crate::detect_barcodes::detect_barcodes_in_path(path)
+            }),
         }
     }
 }
@@ -803,85 +453,10 @@ impl AsyncDetectBarcodes {
 // Person Segmentation Future
 // ============================================================================
 
-/// Parse the raw person-segmentation result from the Swift bridge.
-///
-/// # Safety
-///
-/// `result` must be either null or a valid `AsyncSegResultRaw` pointer whose
-/// `bytes` field, when non-null, points to at least `height * bytes_per_row` bytes.
-/// `error` must be either null or a valid null-terminated C string.
-#[cfg(feature = "segmentation")]
-unsafe fn parse_seg_result(
-    result: *const c_void,
-    error: *const i8,
-) -> Result<SegmentationMask, String> {
-    if !error.is_null() {
-        // SAFETY: caller guarantees `error` is a valid C string when non-null.
-        return Err(unsafe { error_from_cstr(error) });
-    }
-    if result.is_null() {
-        return Err("segmentation returned null".into());
-    }
-
-    // SAFETY: caller guarantees `result` is a valid `AsyncSegResultRaw` pointer.
-    let raw = unsafe { &*(result.cast::<ffi::AsyncSegResultRaw>()) };
-    if raw.bytes.is_null() {
-        // SAFETY: `result` is the non-null allocation produced by the Swift async bridge.
-        unsafe { ffi::vn_async_seg_result_free(result.cast_mut()) };
-        return Err("segmentation bytes were null".into());
-    }
-
-    let len = raw.height.saturating_mul(raw.bytes_per_row);
-    // SAFETY: `raw.bytes` is valid for `len` bytes as guaranteed by the Swift bridge.
-    let bytes = unsafe { core::slice::from_raw_parts(raw.bytes, len) }.to_vec();
-    let mask = SegmentationMask {
-        width: raw.width,
-        height: raw.height,
-        bytes_per_row: raw.bytes_per_row,
-        bytes,
-    };
-
-    // SAFETY: `result` is the non-null allocation produced by the Swift async bridge;
-    // unique free site.
-    unsafe { ffi::vn_async_seg_result_free(result.cast_mut()) };
-    Ok(mask)
-}
-
-/// `extern "C"` callback invoked by the Swift bridge when person segmentation completes.
-///
-/// Wrapped in `catch_unwind`; on panic the future is resolved with an error.
-#[cfg(feature = "segmentation")]
-extern "C" fn seg_result_cb(result: *const c_void, error: *const i8, ctx: *mut c_void) {
-    // SAFETY: `result` and `error` are valid for the duration of this call per the bridge
-    // contract. `AssertUnwindSafe` is correct: raw pointers are not accessed after unwinding.
-    let outcome =
-        std::panic::catch_unwind(AssertUnwindSafe(|| unsafe { parse_seg_result(result, error) }));
-    match outcome {
-        Ok(Ok(mask)) => {
-            // SAFETY: `ctx` is the `Arc<AsyncCompletionInner<_>>` context from `AsyncCompletion::create()`.
-            unsafe { AsyncCompletion::complete_ok(ctx, mask) };
-        }
-        Ok(Err(msg)) => {
-            // SAFETY: same as above.
-            unsafe { AsyncCompletion::<SegmentationMask>::complete_err(ctx, msg) };
-        }
-        Err(payload) => {
-            log_callback_panic("seg_result_cb", payload.as_ref());
-            // SAFETY: same as above.
-            unsafe {
-                AsyncCompletion::<SegmentationMask>::complete_err(
-                    ctx,
-                    "panic in Vision seg_result_cb".into(),
-                );
-            };
-        }
-    }
-}
-
-/// Future resolving to a `SegmentationMask`.
+/// Future resolving to an `Option<SegmentationMask>`.
 #[cfg(feature = "segmentation")]
 pub struct PersonSegmentationFuture {
-    inner: FutureState<SegmentationMask>,
+    inner: WorkerFuture<Option<SegmentationMask>>,
 }
 
 #[cfg(feature = "segmentation")]
@@ -894,7 +469,7 @@ impl std::fmt::Debug for PersonSegmentationFuture {
 
 #[cfg(feature = "segmentation")]
 impl Future for PersonSegmentationFuture {
-    type Output = Result<SegmentationMask, VisionError>;
+    type Output = Result<Option<SegmentationMask>, VisionError>;
 
     fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
         Pin::new(&mut self.inner).poll(cx)
@@ -926,29 +501,56 @@ impl AsyncPersonSegmentation {
     ///
     /// # Errors
     ///
-    /// Returns [`VisionError::RequestFailed`] if Vision fails.
+    /// Resolves to the same result and errors as
+    /// [`generate_person_segmentation_in_path`](crate::segmentation::generate_person_segmentation_in_path).
     pub fn generate_in_path(&self, path: impl AsRef<Path>) -> PersonSegmentationFuture {
-        match path_to_cstring(path) {
-            Err(error) => PersonSegmentationFuture {
-                inner: FutureState::ready_err(error),
-            },
-            Ok(path_c) => {
-                let (future, ctx) = AsyncCompletion::create();
-                // SAFETY: `path_c` is a valid C string. `seg_result_cb` satisfies the
-                // single-fire callback contract and completes `ctx` exactly once.
-                // `self.quality as i32` is always a valid quality-level enum value.
-                unsafe {
-                    ffi::vn_generate_person_segmentation_async(
-                        path_c.as_ptr(),
-                        self.quality as i32,
-                        seg_result_cb,
-                        ctx,
-                    );
-                };
-                PersonSegmentationFuture {
-                    inner: FutureState::pending(future),
-                }
-            }
+        let path = path.as_ref().to_path_buf();
+        let quality = self.quality;
+        PersonSegmentationFuture {
+            inner: run_on_dispatch_queue(move || {
+                crate::segmentation::generate_person_segmentation_in_path(path, quality)
+            }),
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_panicking_request_resolves_with_an_error() {
+        let future: WorkerFuture<()> = run_on_dispatch_queue(|| panic!("request exploded"));
+        assert!(matches!(
+            pollster::block_on(future),
+            Err(VisionError::Unknown {
+                code: ffi::status::UNKNOWN,
+                ..
+            })
+        ));
+    }
+
+    #[test]
+    fn requests_run_off_the_calling_thread() {
+        let caller = std::thread::current().id();
+        let worker = pollster::block_on(run_on_dispatch_queue(move || {
+            Ok(std::thread::current().id())
+        }))
+        .expect("worker result");
+        assert_ne!(worker, caller);
+    }
+
+    #[test]
+    fn many_requests_share_the_dispatch_pool() {
+        let mut futures = Vec::new();
+        for value in 0..64_usize {
+            futures.push(run_on_dispatch_queue(move || Ok(value * 2)));
+        }
+        for (value, future) in futures.into_iter().enumerate() {
+            assert_eq!(
+                pollster::block_on(future).expect("worker result"),
+                value * 2
+            );
         }
     }
 }

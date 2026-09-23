@@ -2,10 +2,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     pollster::block_on(async {
         let path = std::env::args().nth(1);
         if let Some(path) = path {
-            let mask = apple_vision::async_api::AsyncPersonSegmentation::default()
+            match apple_vision::async_api::AsyncPersonSegmentation::default()
                 .generate_in_path(&path)
-                .await?;
-            println!("Segmentation mask: {}x{}", mask.width, mask.height);
+                .await?
+            {
+                Some(mask) => println!("Segmentation mask: {}x{}", mask.width, mask.height),
+                None => println!("No segmentation mask"),
+            }
         } else {
             println!("No image path supplied — async plumbing OK");
         }
