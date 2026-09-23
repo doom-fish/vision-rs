@@ -18,6 +18,7 @@
 pub mod error;
 pub mod ffi;
 pub mod geometry;
+mod mask;
 pub mod recognized_points;
 pub mod request_base;
 pub mod sdk;

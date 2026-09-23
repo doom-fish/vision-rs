@@ -54,8 +54,8 @@ fn main() {
     match person_instance_mask(&img).expect("person instance mask") {
         Some(mask) => println!(
             "✅ person instance mask: {}x{} ({} bytes)",
-            mask.width,
-            mask.height,
+            mask.width(),
+            mask.height(),
             mask.as_bytes().len()
         ),
         None => println!("✅ person instance mask: no persons (expected for fixture)"),

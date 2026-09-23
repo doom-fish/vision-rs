@@ -15,6 +15,7 @@ use std::path::Path;
 
 use crate::error::{from_swift, VisionError};
 use crate::ffi;
+use crate::mask::take_scaled_mask;
 use crate::request_base::PixelBufferObservation;
 
 /// Apple person-segmentation quality.
@@ -233,22 +234,12 @@ pub fn generate_scaled_foreground_mask_in_path(
     if !has_value || handle.is_null() {
         return Ok(None);
     }
-
-    let width = usize::try_from(width).unwrap_or(0);
-    let height = usize::try_from(height).unwrap_or(0);
-    let len = width.saturating_mul(height);
-    // Allocate the destination once and let the bridge convert/copy the mask
-    // directly into it — a single copy, no intermediate Swift allocation.
-    let mut bytes = vec![0u8; len];
-    // SAFETY: `handle` is a non-null buffer retained by `begin`; `bytes` is valid
-    // for `len` writes. `finish` consumes the handle (releases the buffer) exactly once.
-    unsafe { ffi::vn_scaled_foreground_mask_finish(handle, bytes.as_mut_ptr(), len) };
-
+    let mask = take_scaled_mask(handle, width, height)?;
     Ok(Some(SegmentationMask {
-        width,
-        height,
-        bytes_per_row: width,
-        bytes,
+        width: mask.width,
+        height: mask.height,
+        bytes_per_row: mask.width,
+        bytes: mask.bytes,
     }))
 }
 
@@ -281,27 +272,49 @@ fn take_raw(raw: &mut ffi::SegmentationMaskRaw) -> SegmentationMask {
 }
 
 #[doc(hidden)]
-#[must_use]
-/// Test helper: run the bridge's `OneComponent32Float` → 8-bit mask
-/// normalisation (`fillOne8`) over `floats` (row-major, length
-/// `width * height`, values in `0.0..=1.0`) without needing the Vision
+#[allow(clippy::missing_errors_doc)]
+/// Test helper: run the bridge's single-channel → 8-bit mask normalisation
+/// (`fillOne8`) over `values` (row-major, `width * bytes_per_pixel` bytes per
+/// row, in the layout of `pixel_format`) without needing the Vision
 /// segmentation model to detect a subject. Not part of the stable API.
-pub fn _test_helper_scaled_mask_to_one8(floats: &[f32], width: usize, height: usize) -> SegmentationMask {
-    assert_eq!(floats.len(), width * height, "floats must be width * height");
-    let w = i32::try_from(width).expect("width fits in i32");
-    let h = i32::try_from(height).expect("height fits in i32");
-    let len = width.saturating_mul(height);
+pub fn _test_helper_fill_one8(
+    values: &[u8],
+    pixel_format: u32,
+    bytes_per_pixel: usize,
+    width: usize,
+    height: usize,
+) -> Result<SegmentationMask, VisionError> {
+    let invalid = || VisionError::InvalidArgument("mask dimensions do not match the values".into());
+    let len = width.checked_mul(height).ok_or_else(invalid)?;
+    if len.checked_mul(bytes_per_pixel) != Some(values.len()) || len == 0 {
+        return Err(invalid());
+    }
+    let w = i32::try_from(width).map_err(|_| invalid())?;
+    let h = i32::try_from(height).map_err(|_| invalid())?;
+    let bpp = i32::try_from(bytes_per_pixel).map_err(|_| invalid())?;
     let mut bytes = vec![0u8; len];
-    // SAFETY: `floats` is valid for `width * height` reads; `bytes` is valid for
-    // `len` writes — the bridge converts the floats directly into it.
+    // SAFETY: `values` is valid for `width * height * bytes_per_pixel` reads;
+    // `bytes` is valid for `len` writes — the bridge converts directly into it.
     let status = unsafe {
-        ffi::vn_test_helper_fill_one8_from_floats(floats.as_ptr(), w, h, bytes.as_mut_ptr(), len)
+        ffi::vn_test_helper_fill_one8(
+            values.as_ptr().cast(),
+            pixel_format,
+            bpp,
+            w,
+            h,
+            bytes.as_mut_ptr(),
+            len,
+        )
     };
-    assert_eq!(status, ffi::status::OK, "scaled mask helper failed: {status}");
-    SegmentationMask {
+    if status != ffi::status::OK {
+        return Err(VisionError::RequestFailed(format!(
+            "fillOne8 rejected the buffer (status {status})"
+        )));
+    }
+    Ok(SegmentationMask {
         width,
         height,
         bytes_per_row: width,
         bytes,
-    }
+    })
 }

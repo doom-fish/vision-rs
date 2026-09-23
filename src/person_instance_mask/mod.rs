@@ -1,51 +1,46 @@
-#![allow(clippy::cast_possible_wrap, clippy::cast_sign_loss)]
 #![allow(clippy::too_long_first_doc_paragraph)]
 //! `VNGeneratePersonInstanceMaskRequest` — per-person instance mask
 //! (macOS 14+).
 
-use std::ffi::{CStr, CString};
+use core::ffi::c_void;
+use std::ffi::CString;
 use std::path::Path;
 use std::ptr;
 
-use crate::error::VisionError;
+use crate::error::{from_swift, VisionError};
 use crate::ffi;
+use crate::mask::take_scaled_mask;
 
 /// A returned 8-bit grayscale mask.
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PersonInstanceMask {
-    pub width: usize,
-    pub height: usize,
-    pub bytes_per_row: usize,
-    data: *mut u8,
+    width: usize,
+    height: usize,
+    bytes: Vec<u8>,
 }
 
 impl PersonInstanceMask {
+    #[must_use]
+    pub const fn width(&self) -> usize {
+        self.width
+    }
+
+    #[must_use]
+    pub const fn height(&self) -> usize {
+        self.height
+    }
+
+    #[must_use]
+    pub const fn bytes_per_row(&self) -> usize {
+        self.width
+    }
+
     /// Row-major byte view into the mask buffer.
     #[must_use]
-    pub const fn as_bytes(&self) -> &[u8] {
-        // SAFETY: `self.data` is a valid, non-null pointer to `bytes_per_row * height` bytes
-        // allocated by the Swift bridge. The lifetime of the slice is tied to `&self`, so it
-        // cannot outlive the allocation.
-        unsafe { core::slice::from_raw_parts(self.data, self.bytes_per_row * self.height) }
+    pub fn as_bytes(&self) -> &[u8] {
+        &self.bytes
     }
 }
-
-impl Drop for PersonInstanceMask {
-    fn drop(&mut self) {
-        if !self.data.is_null() {
-            let size = (self.bytes_per_row * self.height) as isize;
-            // SAFETY: `self.data` is the pointer returned by the Swift bridge and has not
-            // been freed yet; `size` matches the allocation size. This is the unique drop site.
-            unsafe { ffi::vn_mask_buffer_free(self.data, size) };
-            self.data = ptr::null_mut();
-        }
-    }
-}
-
-// SAFETY: `PersonInstanceMask` owns a heap-allocated buffer from the Swift bridge.
-// The buffer is not aliased elsewhere; transferring ownership across thread boundaries
-// is safe.  Shared references do not mutate the buffer, so `Sync` also holds.
-unsafe impl Send for PersonInstanceMask {}
-unsafe impl Sync for PersonInstanceMask {}
 
 /// Generate a person-instance mask for the image at `path`.
 ///
@@ -62,53 +57,33 @@ pub fn person_instance_mask(
         .ok_or_else(|| VisionError::InvalidArgument("non-UTF-8 path".into()))?;
     let cpath = CString::new(path_str)
         .map_err(|e| VisionError::InvalidArgument(format!("path NUL byte: {e}")))?;
-    let mut w: isize = 0;
-    let mut h: isize = 0;
-    let mut bpr: isize = 0;
-    let mut data: *mut u8 = ptr::null_mut();
+    let mut has_value = false;
+    let mut width: i32 = 0;
+    let mut height: i32 = 0;
+    let mut handle: *mut c_void = ptr::null_mut();
     let mut err: *mut std::ffi::c_char = ptr::null_mut();
     // SAFETY: All pointer arguments are either null or valid out-parameters
     // populated by the Swift bridge on return.
     let status = unsafe {
-        ffi::vn_person_instance_mask_in_path(
+        ffi::vn_person_instance_mask_begin(
             cpath.as_ptr(),
-            &raw mut w,
-            &raw mut h,
-            &raw mut bpr,
-            &raw mut data,
+            &raw mut has_value,
+            &raw mut width,
+            &raw mut height,
+            &raw mut handle,
             &raw mut err,
         )
     };
     if status != ffi::status::OK {
-        // SAFETY: `err` is either null or a malloc'd C string produced by the bridge.
-        let msg = unsafe { take_err(err) };
-        return Err(VisionError::RequestFailed(msg));
+        return Err(unsafe { from_swift(status, err) });
     }
-    if data.is_null() {
+    if !has_value || handle.is_null() {
         return Ok(None);
     }
+    let mask = take_scaled_mask(handle, width, height)?;
     Ok(Some(PersonInstanceMask {
-        width: w.max(0) as usize,
-        height: h.max(0) as usize,
-        bytes_per_row: bpr.max(0) as usize,
-        data,
+        width: mask.width,
+        height: mask.height,
+        bytes: mask.bytes,
     }))
-}
-
-/// Extract an error string from a bridge-allocated C string and free it.
-///
-/// # Safety
-///
-/// `p` must be either null or a pointer to a valid null-terminated C string
-/// that was heap-allocated by the Swift bridge (i.e., by `malloc`).
-/// After this call `p` is invalid; the caller must not use it again.
-unsafe fn take_err(p: *mut std::ffi::c_char) -> String {
-    if p.is_null() {
-        return String::new();
-    }
-    // SAFETY: `p` is a valid C string per the function contract.
-    let s = unsafe { CStr::from_ptr(p) }.to_string_lossy().into_owned();
-    // SAFETY: `p` was malloc-allocated by the bridge and has not been freed yet.
-    unsafe { libc::free(p.cast()) };
-    s
 }

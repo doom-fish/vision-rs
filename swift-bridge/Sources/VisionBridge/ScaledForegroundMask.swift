@@ -25,42 +25,114 @@ import Vision
 /// Convert/copy a single-channel mask pixel buffer into a tightly packed 8-bit
 /// (0...255) destination, one byte per pixel.
 ///
-/// `OneComponent32Float` (what `generateScaledMaskForImage` returns) is scaled
-/// and clamped to `[0, 255]`; an already 8-bit buffer is copied row-by-row.
+/// `OneComponent32Float` (what `generateScaledMaskForImage` returns) and
+/// `OneComponent16Half` are scaled and clamped to `[0, 255]`; an already 8-bit
+/// buffer is copied row-by-row.
 /// `capacity` is the number of `UInt8` slots in `dst`; the function writes at
-/// most `width * height` bytes and no-ops if `dst` is too small.
+/// most `width * height` bytes and fails if `dst` is too small.
 internal func fillOne8(
     from buffer: CVPixelBuffer,
     into dst: UnsafeMutablePointer<UInt8>,
     capacity: Int
-) {
+) -> Int32 {
     let width = CVPixelBufferGetWidth(buffer)
     let height = CVPixelBufferGetHeight(buffer)
-    guard width * height <= capacity else { return }
+    let (pixelCount, overflow) = width.multipliedReportingOverflow(by: height)
+    guard !overflow, pixelCount <= capacity else { return VN_INVALID_ARGUMENT }
     let format = CVPixelBufferGetPixelFormatType(buffer)
-    CVPixelBufferLockBaseAddress(buffer, .readOnly)
-    defer { CVPixelBufferUnlockBaseAddress(buffer, .readOnly) }
-    guard let base = CVPixelBufferGetBaseAddress(buffer) else { return }
-    let srcBytesPerRow = CVPixelBufferGetBytesPerRow(buffer)
-
-    if format == kCVPixelFormatType_OneComponent8 {
-        for y in 0..<height {
-            memcpy(dst.advanced(by: y * width),
-                   base.advanced(by: y * srcBytesPerRow),
-                   width)
-        }
-        return
+    let bytesPerPixel: Int
+    switch format {
+    case kCVPixelFormatType_OneComponent8:
+        bytesPerPixel = 1
+    case kCVPixelFormatType_OneComponent16Half:
+        bytesPerPixel = 2
+    case kCVPixelFormatType_OneComponent32Float:
+        bytesPerPixel = 4
+    default:
+        return VN_REQUEST_FAILED
     }
+    guard CVPixelBufferLockBaseAddress(buffer, .readOnly) == kCVReturnSuccess else {
+        return VN_REQUEST_FAILED
+    }
+    defer { CVPixelBufferUnlockBaseAddress(buffer, .readOnly) }
+    guard let base = CVPixelBufferGetBaseAddress(buffer) else { return VN_REQUEST_FAILED }
+    let srcBytesPerRow = CVPixelBufferGetBytesPerRow(buffer)
+    guard srcBytesPerRow >= width * bytesPerPixel else { return VN_REQUEST_FAILED }
 
     for y in 0..<height {
         let srcRow = base.advanced(by: y * srcBytesPerRow)
-            .assumingMemoryBound(to: Float32.self)
         let dstRow = dst.advanced(by: y * width)
-        for x in 0..<width {
-            let scaled = (srcRow[x] * 255.0).rounded()
-            dstRow[x] = UInt8(min(max(scaled, 0.0), 255.0))
+        switch format {
+        case kCVPixelFormatType_OneComponent8:
+            memcpy(dstRow, srcRow, width)
+        case kCVPixelFormatType_OneComponent16Half:
+            let halves = srcRow.assumingMemoryBound(to: UInt16.self)
+            for x in 0..<width {
+                dstRow[x] = unitToByte(halfToFloat(halves[x]))
+            }
+        default:
+            let floats = srcRow.assumingMemoryBound(to: Float32.self)
+            for x in 0..<width {
+                dstRow[x] = unitToByte(floats[x])
+            }
         }
     }
+    return VN_OK
+}
+
+internal func unitToByte(_ value: Float32) -> UInt8 {
+    if value.isNaN {
+        return 0
+    }
+    return UInt8(min(max((value * 255.0).rounded(), 0.0), 255.0))
+}
+
+internal func halfToFloat(_ bits: UInt16) -> Float32 {
+    let sign = UInt32(bits & 0x8000) << 16
+    let exponent = UInt32(bits >> 10) & 0x1F
+    let mantissa = UInt32(bits & 0x03FF)
+    if exponent == 0 {
+        let magnitude = Float32(mantissa) * Float32(bitPattern: 0x3380_0000)
+        return sign == 0 ? magnitude : -magnitude
+    }
+    if exponent == 0x1F {
+        return Float32(bitPattern: sign | 0x7F80_0000 | (mantissa << 13))
+    }
+    return Float32(bitPattern: sign | ((exponent + 112) << 23) | (mantissa << 13))
+}
+
+@available(macOS 14.0, *)
+internal func beginScaledMask(
+    of observation: VNInstanceMaskObservation,
+    from handler: VNImageRequestHandler,
+    _ outHasValue: UnsafeMutablePointer<Bool>,
+    _ outWidth: UnsafeMutablePointer<Int32>,
+    _ outHeight: UnsafeMutablePointer<Int32>,
+    _ outHandle: UnsafeMutablePointer<UnsafeMutableRawPointer?>,
+    _ outErrorMessage: UnsafeMutablePointer<UnsafeMutablePointer<CChar>?>?
+) -> Int32 {
+    let instances = observation.allInstances
+    if instances.isEmpty {
+        return VN_OK
+    }
+    let scaled: CVPixelBuffer
+    do {
+        scaled = try observation.generateScaledMaskForImage(forInstances: instances, from: handler)
+    } catch {
+        outErrorMessage?.pointee = ffiString(
+            "generateScaledMaskForImage failed: \(error.localizedDescription)")
+        return VN_REQUEST_FAILED
+    }
+    guard let width = Int32(exactly: CVPixelBufferGetWidth(scaled)),
+          let height = Int32(exactly: CVPixelBufferGetHeight(scaled)) else {
+        outErrorMessage?.pointee = ffiString("scaled mask is too large")
+        return VN_REQUEST_FAILED
+    }
+    outWidth.pointee = width
+    outHeight.pointee = height
+    outHandle.pointee = Unmanaged.passRetained(scaled).toOpaque()
+    outHasValue.pointee = true
+    return VN_OK
 }
 
 /// Phase 1: run the foreground-instance-mask request, scale the union mask to
@@ -101,46 +173,38 @@ public func vn_scaled_foreground_mask_begin(
         guard let obs = request.results?.first else {
             return VN_OK
         }
-        let scaled: CVPixelBuffer
-        do {
-            scaled = try obs.generateScaledMaskForImage(
-                forInstances: obs.allInstances, from: handler)
-        } catch {
-            outErrorMessage?.pointee = ffiString(
-                "generateScaledMaskForImage failed: \(error.localizedDescription)")
-            return VN_REQUEST_FAILED
-        }
-        outWidth.pointee = Int32(CVPixelBufferGetWidth(scaled))
-        outHeight.pointee = Int32(CVPixelBufferGetHeight(scaled))
-        outHandle.pointee = Unmanaged.passRetained(scaled).toOpaque()
-        outHasValue.pointee = true
+        return beginScaledMask(
+            of: obs, from: handler, outHasValue, outWidth, outHeight, outHandle, outErrorMessage)
     }
     return VN_OK
 }
 
 /// Phase 2: convert/copy the mask retained by `vn_scaled_foreground_mask_begin`
-/// directly into the caller-provided 8-bit `dst` (capacity `dstLen` bytes),
-/// then release the retained pixel buffer. Must be called exactly once per
-/// non-null handle returned by `begin`.
+/// or `vn_person_instance_mask_begin` directly into the caller-provided 8-bit
+/// `dst` (capacity `dstLen` bytes), then release the retained pixel buffer.
+/// Must be called exactly once per non-null handle returned by `begin`.
 @_cdecl("vn_scaled_foreground_mask_finish")
 public func vn_scaled_foreground_mask_finish(
     _ handle: UnsafeMutableRawPointer,
-    _ dst: UnsafeMutablePointer<UInt8>,
+    _ dst: UnsafeMutablePointer<UInt8>?,
     _ dstLen: Int
-) {
+) -> Int32 {
     let buffer = Unmanaged<CVPixelBuffer>.fromOpaque(handle).takeRetainedValue()
-    fillOne8(from: buffer, into: dst, capacity: dstLen)
+    guard let dst else { return VN_INVALID_ARGUMENT }
+    return fillOne8(from: buffer, into: dst, capacity: dstLen)
 }
 
-/// Test-only helper: build a `OneComponent32Float` pixel buffer from `floats`
-/// (row-major, `width * height` values in 0.0...1.0) and run it through
-/// `fillOne8`, writing the normalised 8-bit result directly into the
-/// caller-provided `dst`. Lets the Rust test suite verify the float→u8
-/// conversion deterministically, without depending on the Vision segmentation
-/// model detecting a subject.
-@_cdecl("vn_test_helper_fill_one8_from_floats")
-public func vn_test_helper_fill_one8_from_floats(
-    _ floats: UnsafePointer<Float32>,
+/// Test-only helper: build a single-channel pixel buffer of `pixelFormat` from
+/// `values` (row-major, `width * bytesPerPixel` bytes per row) and run it
+/// through `fillOne8`, writing the normalised 8-bit result directly into the
+/// caller-provided `dst`. Lets the Rust test suite verify the conversion
+/// deterministically, without depending on the Vision segmentation model
+/// detecting a subject.
+@_cdecl("vn_test_helper_fill_one8")
+public func vn_test_helper_fill_one8(
+    _ values: UnsafeRawPointer,
+    _ pixelFormat: UInt32,
+    _ bytesPerPixel: Int32,
     _ width: Int32,
     _ height: Int32,
     _ dst: UnsafeMutablePointer<UInt8>,
@@ -148,23 +212,21 @@ public func vn_test_helper_fill_one8_from_floats(
 ) -> Int32 {
     let w = Int(width)
     let h = Int(height)
+    let rowBytes = w * Int(bytesPerPixel)
     var pixelBuffer: CVPixelBuffer?
-    let status = CVPixelBufferCreate(
-        kCFAllocatorDefault, w, h,
-        kCVPixelFormatType_OneComponent32Float, nil, &pixelBuffer)
+    let status = CVPixelBufferCreate(kCFAllocatorDefault, w, h, pixelFormat, nil, &pixelBuffer)
     guard status == kCVReturnSuccess, let buffer = pixelBuffer else {
         return VN_UNKNOWN
     }
-    CVPixelBufferLockBaseAddress(buffer, [])
+    guard CVPixelBufferLockBaseAddress(buffer, []) == kCVReturnSuccess else {
+        return VN_UNKNOWN
+    }
     if let base = CVPixelBufferGetBaseAddress(buffer) {
         let bytesPerRow = CVPixelBufferGetBytesPerRow(buffer)
         for y in 0..<h {
-            let row = base.advanced(by: y * bytesPerRow)
-                .assumingMemoryBound(to: Float32.self)
-            for x in 0..<w { row[x] = floats[y * w + x] }
+            memcpy(base.advanced(by: y * bytesPerRow), values.advanced(by: y * rowBytes), rowBytes)
         }
     }
     CVPixelBufferUnlockBaseAddress(buffer, [])
-    fillOne8(from: buffer, into: dst, capacity: dstLen)
-    return VN_OK
+    return fillOne8(from: buffer, into: dst, capacity: dstLen)
 }

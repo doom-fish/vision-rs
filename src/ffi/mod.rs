@@ -495,7 +495,8 @@ extern "C" {
         out_error_message: *mut *mut c_char,
     ) -> i32;
 
-    pub fn vn_scaled_foreground_mask_finish(handle: *mut c_void, dst: *mut u8, dst_len: usize);
+    pub fn vn_scaled_foreground_mask_finish(handle: *mut c_void, dst: *mut u8, dst_len: usize)
+        -> i32;
 
     pub fn vn_segmentation_mask_free(mask: *mut SegmentationMaskRaw);
 
@@ -593,8 +594,10 @@ extern "C" {
         output_path: *const c_char,
     ) -> i32;
 
-    pub fn vn_test_helper_fill_one8_from_floats(
-        floats: *const f32,
+    pub fn vn_test_helper_fill_one8(
+        values: *const c_void,
+        pixel_format: u32,
+        bytes_per_pixel: i32,
         width: i32,
         height: i32,
         dst: *mut u8,
@@ -747,15 +750,14 @@ extern "C" {
     ) -> i32;
     pub fn vn_simple_rects_free(ptr: *mut SimpleRectRaw, count: isize);
 
-    pub fn vn_person_instance_mask_in_path(
+    pub fn vn_person_instance_mask_begin(
         path: *const c_char,
-        out_width: *mut isize,
-        out_height: *mut isize,
-        out_bytes_per_row: *mut isize,
-        out_data: *mut *mut u8,
-        out_err: *mut *mut c_char,
+        out_has_value: *mut bool,
+        out_width: *mut i32,
+        out_height: *mut i32,
+        out_handle: *mut *mut c_void,
+        out_error_message: *mut *mut c_char,
     ) -> i32;
-    pub fn vn_mask_buffer_free(ptr: *mut u8, size: isize);
 
     pub fn vn_detect_trajectories_in_path(
         path: *const c_char,

@@ -4,10 +4,29 @@ use std::fs;
 use std::path::PathBuf;
 
 use apple_vision::recognize_text::_test_helper_render_text_png;
-use apple_vision::segmentation::_test_helper_scaled_mask_to_one8;
+use apple_vision::segmentation::_test_helper_fill_one8;
 use apple_vision::{
     generate_foreground_instance_mask_in_path, generate_scaled_foreground_mask_in_path,
+    person_instance_mask, VisionError,
 };
+
+const ONE_COMPONENT_8: u32 = u32::from_be_bytes(*b"L008");
+const ONE_COMPONENT_16_HALF: u32 = u32::from_be_bytes(*b"L00h");
+const ONE_COMPONENT_32_FLOAT: u32 = u32::from_be_bytes(*b"L00f");
+
+fn float_bytes(values: &[f32]) -> Vec<u8> {
+    values
+        .iter()
+        .flat_map(|value| value.to_ne_bytes())
+        .collect()
+}
+
+fn half_bytes(values: &[u16]) -> Vec<u8> {
+    values
+        .iter()
+        .flat_map(|value| value.to_ne_bytes())
+        .collect()
+}
 
 fn fixtures_dir() -> Result<PathBuf, Box<dyn std::error::Error>> {
     let dir = std::env::current_dir()?
@@ -31,7 +50,8 @@ fn scaled_mask_float_buffer_is_normalised_to_8bit() {
     // not memcpy raw float bytes through the u8 `SegmentationMask` contract.
     // Width 3 x height 2, with soft edge values.
     let floats = [0.0, 0.5, 1.0, 0.25, 0.75, 1.0];
-    let mask = _test_helper_scaled_mask_to_one8(&floats, 3, 2);
+    let mask = _test_helper_fill_one8(&float_bytes(&floats), ONE_COMPONENT_32_FLOAT, 4, 3, 2)
+        .expect("float mask converts");
 
     assert_eq!((mask.width, mask.height), (3, 2));
     assert_eq!(
@@ -44,8 +64,78 @@ fn scaled_mask_float_buffer_is_normalised_to_8bit() {
 }
 
 #[test]
-fn scaled_foreground_mask_dimensions_match_source(
+fn non_finite_and_out_of_range_floats_are_clamped() {
+    let floats = [
+        f32::NAN,
+        f32::INFINITY,
+        f32::NEG_INFINITY,
+        1.5,
+        -0.5,
+        -f32::NAN,
+    ];
+    let mask = _test_helper_fill_one8(&float_bytes(&floats), ONE_COMPONENT_32_FLOAT, 4, 6, 1)
+        .expect("non-finite values must not trap");
+    assert_eq!(mask.bytes, vec![0, 255, 0, 255, 0, 0]);
+}
+
+#[test]
+fn half_float_masks_are_converted_not_over_read() {
+    let halves = [
+        0x0000, 0x3800, 0x3C00, 0x3400, 0x7E00, 0x0001, 0xBC00, 0x7C00,
+    ];
+    let mask = _test_helper_fill_one8(&half_bytes(&halves), ONE_COMPONENT_16_HALF, 2, 4, 2)
+        .expect("half mask converts");
+    assert_eq!(mask.bytes, vec![0, 128, 255, 64, 0, 0, 0, 255]);
+}
+
+#[test]
+fn eight_bit_masks_are_copied() {
+    let values = [0_u8, 7, 128, 255, 1, 2];
+    let mask = _test_helper_fill_one8(&values, ONE_COMPONENT_8, 1, 2, 3).expect("8-bit mask");
+    assert_eq!(mask.bytes, values);
+    assert_eq!(mask.bytes_per_row, 2);
+}
+
+#[test]
+fn unsupported_mask_formats_are_rejected() {
+    let bgra = [0_u8; 16];
+    let result = _test_helper_fill_one8(&bgra, u32::from_be_bytes(*b"BGRA"), 4, 2, 2);
+    assert!(
+        matches!(result, Err(VisionError::RequestFailed(_))),
+        "{result:?}"
+    );
+}
+
+#[test]
+fn mismatched_mask_lengths_are_rejected() {
+    let floats = float_bytes(&[0.0; 5]);
+    for (width, height) in [(3, 2), (0, 5), (usize::MAX, 2)] {
+        let result = _test_helper_fill_one8(&floats, ONE_COMPONENT_32_FLOAT, 4, width, height);
+        assert!(
+            matches!(result, Err(VisionError::InvalidArgument(_))),
+            "{result:?}"
+        );
+    }
+}
+
+#[test]
+fn person_instance_mask_reports_errors_and_consistent_masks(
 ) -> Result<(), Box<dyn std::error::Error>> {
+    assert!(person_instance_mask("/this/path/does/not/exist.png").is_err());
+
+    let dir = fixtures_dir()?;
+    let image = dir.join("person-instance-mask.png");
+    _test_helper_render_text_png("NOBODY HERE", 320, 240, &image)?;
+    if let Some(mask) = person_instance_mask(&image)? {
+        assert_eq!((mask.width(), mask.height()), (320, 240));
+        assert_eq!(mask.bytes_per_row(), mask.width());
+        assert_eq!(mask.as_bytes().len(), mask.width() * mask.height());
+    }
+    Ok(())
+}
+
+#[test]
+fn scaled_foreground_mask_dimensions_match_source() -> Result<(), Box<dyn std::error::Error>> {
     let dir = fixtures_dir()?;
     let image = dir.join("scaled-mask.png");
     _test_helper_render_text_png("HELLO", 640, 480, &image)?;
