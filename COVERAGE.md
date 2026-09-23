@@ -38,7 +38,7 @@ Legend:
 | VNGenerateForegroundInstanceMaskRequest | ✅ implemented | Exposed as `generate_foreground_instance_mask_in_path`. |
 | VNGenerateImageFeaturePrintRequest | ✅ implemented | Exposed as `generate_image_feature_print_in_path`. |
 | VNGenerateObjectnessBasedSaliencyImageRequest | ✅ implemented | Exposed as `objectness_saliency`. |
-| VNGenerateOpticalFlowRequest | ✅ implemented | Exposed as `generate_optical_flow_in_paths`. |
+| VNGenerateOpticalFlowRequest | ✅ implemented | Exposed as `generate_optical_flow_in_paths`, which returns an `OpticalFlow` field of `(dx, dy)` vectors. |
 | VNGeneratePersonInstanceMaskRequest | ✅ implemented | Exposed as `person_instance_mask` (macOS 14+). |
 | VNGeneratePersonSegmentationRequest | ✅ implemented | Exposed as `generate_person_segmentation_in_path`. |
 | VNHomographicImageRegistrationRequest | ✅ implemented | Exposed as `register_homographic`. |
@@ -89,3 +89,9 @@ Legend:
 | VNSaliencyImageObservation | ✅ implemented | Exposed through `SalientRegion` / `ObjectnessRegion` result sets. |
 | VNTextObservation | ✅ implemented | Exposed as `TextObservation`, including top-level boxes plus optional `character_boxes`. |
 | VNTrajectoryObservation | ✅ implemented | Exposed through `Trajectory` (detected/projected points, equation coefficients, confidence). |
+
+## Not covered
+
+- The Swift-only Vision API. Its macOS 26 requests with no Objective-C equivalent, `RecognizeDocumentsRequest` / `DocumentObservation` and `DetectLensSmudgeRequest` / `SmudgeObservation`, are not wrapped.
+- The macOS 27 additions `GenerateIterativeSegmentationRequest` and `DownloadableAssetsRequest`.
+- In-memory image input: requests take file paths (plus a `CVPixelBuffer` entry for OCR and face detection); there is no `CGImage`/`Data` input and no multi-request `perform`.

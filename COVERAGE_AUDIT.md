@@ -6,6 +6,8 @@ GAPS: 0
 EXEMPT: 27
 COVERAGE_PCT: 89.16%
 
+What the numbers measure: the 249-symbol denominator counts only the `VN`-prefixed Objective-C interfaces, protocols, enums, constants and C functions in the Vision headers. It does not count the Swift-only Vision API (for example `RecognizeDocumentsRequest` / `DocumentObservation` and `DetectLensSmudgeRequest` / `SmudgeObservation`, added in macOS 26) or the macOS 27 additions (`GenerateIterativeSegmentationRequest`, `DownloadableAssetsRequest`); none of these are wrapped. Requests take file paths (plus a `CVPixelBuffer` entry for OCR and face detection); there is no `CGImage`/`Data` input and no multi-request `perform`.
+
 Methodology note: per the audit instructions, this inventory covers Vision interfaces, protocols, enum/struct typedefs, exported constants, and top-level C functions. Alias-only typedefs are not counted separately. A symbol is **VERIFIED** only when `apple-vision` exposes a dedicated public Rust surface for it; symbols used only inside the Swift bridge or flattened into crate-specific data structures remain in **GAPS**. Phase 32 also refreshes the Tier-1 async notes for `VNCoreMLRequest`, `VNDetectHumanBodyPose3DRequest`, and `VNDetectTrajectoriesRequest`.
 
 ## 🟢 VERIFIED
@@ -19,7 +21,7 @@ Methodology note: per the audit instructions, this inventory covers Vision inter
 | VNClassifyImageRequest | interface | VNClassifyImageRequest.h:23 | Exposed as `classify_image_in_path`. |
 | VNContoursObservation | interface | VNObservation.h:612 | Exposed as `ContoursObservation`, including top-level contour trees plus contour counts. |
 | VNCoreMLFeatureValueObservation | interface | VNObservation.h:218 | Exposed as `CoreMLFeatureValueObservation` via `CoreMLRequest::feature_value` / `coreml_feature_value_in_path`. |
-| VNCoreMLModel | interface | VNCoreMLRequest.h:22 | Exposed as the dedicated `CoreMLModel` wrapper used by `CoreMLRequest`. |
+| VNCoreMLModel | interface | VNCoreMLRequest.h:22 | Exposed as the dedicated `CoreMLModel` wrapper used by `CoreMLRequest`; the model is compiled once, cached across clones, and its compiled output is removed when the last clone is dropped. |
 | VNCoreMLRequest | interface | VNCoreMLRequest.h:55 | Exposed as `CoreMLRequest`, `coreml_classify_in_path`, `coreml_feature_value_in_path`, and `AsyncCoreMLRequest::{classify_in_path, feature_value_in_path}`. |
 | VNDetectAnimalBodyPoseRequest | interface | VNDetectAnimalBodyPoseRequest.h:19 | Exposed as `detect_animal_body_pose` (macOS 14+). |
 | VNDetectBarcodesRequest | interface | VNDetectBarcodesRequest.h:21 | Exposed as `detect_barcodes_in_path`. |
@@ -43,7 +45,7 @@ Methodology note: per the audit instructions, this inventory covers Vision inter
 | VNGenerateForegroundInstanceMaskRequest | interface | VNGenerateForegroundInstanceMaskRequest.h:20 | Exposed as `generate_foreground_instance_mask_in_path`. |
 | VNGenerateImageFeaturePrintRequest | interface | VNGenerateImageFeaturePrintRequest.h:21 | Exposed as `generate_image_feature_print_in_path`. |
 | VNGenerateObjectnessBasedSaliencyImageRequest | interface | VNGenerateObjectnessBasedSaliencyImageRequest.h:19 | Exposed as `objectness_saliency`. |
-| VNGenerateOpticalFlowRequest | interface | VNGenerateOpticalFlowRequest.h:54 | Exposed as `generate_optical_flow_in_paths`. |
+| VNGenerateOpticalFlowRequest | interface | VNGenerateOpticalFlowRequest.h:54 | Exposed as `generate_optical_flow_in_paths`, which returns an `OpticalFlow` field of `(dx, dy)` vectors. |
 | VNGenerateOpticalFlowRequestComputationAccuracy | enum | VNGenerateOpticalFlowRequest.h:19 | Wrapped by `optical_flow::OpticalFlowAccuracy` and mapped onto `VNGenerateOpticalFlowRequest.ComputationAccuracy` in the Swift bridge. |
 | VNGeneratePersonInstanceMaskRequest | interface | VNGeneratePersonInstanceMaskRequest.h:20 | Exposed as `person_instance_mask` (macOS 14+). |
 | VNGeneratePersonSegmentationRequest | interface | VNGeneratePersonSegmentationRequest.h:34 | Exposed as `generate_person_segmentation_in_path`. |
@@ -59,7 +61,7 @@ Methodology note: per the audit instructions, this inventory covers Vision inter
 | VNImageBasedRequest | interface | VNRequest.h:157 | Exposed as the standalone `ImageBasedRequest` base wrapper reused across request builders. |
 | VNImageHomographicAlignmentObservation | interface | VNObservation.h:532 | Exposed through `HomographicAlignment`. |
 | VNImageRegistrationRequest | interface | VNImageRegistrationRequest.h:21 | Exposed as `ImageRegistrationRequest`, alongside translational + homographic registration helpers. |
-| VNImageRequestHandler | interface | VNRequestHandler.h:65 | Exposed as `ImageRequestHandler`, which runs `Request::recognize_text()` against a still image. |
+| VNImageRequestHandler | interface | VNRequestHandler.h:65 | Exposed as `ImageRequestHandler`, which runs `Request::recognize_text()` against a still image; the image's EXIF orientation is used unless `with_orientation` overrides it. |
 | VNImageTranslationAlignmentObservation | interface | VNObservation.h:519 | Exposed through `TranslationalAlignment`. |
 | VNInstanceMaskObservation | interface | VNObservation.h:746 | Exposed as `InstanceMaskObservation`, including `PixelBufferObservation` bytes + instance counts. |
 | VNObservation | interface | VNObservation.h:42 | Exposed as `Observation`, carrying Vision's shared `uuid`, confidence, and optional `time_range` metadata. |
