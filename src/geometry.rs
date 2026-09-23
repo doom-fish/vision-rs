@@ -277,12 +277,6 @@ struct CGRectRaw {
     size: CGSizeRaw,
 }
 
-#[repr(C)]
-struct VectorFloat2Raw {
-    x: f32,
-    y: f32,
-}
-
 extern "C" {
     static VNNormalizedIdentityRect: CGRectRaw;
 
@@ -331,14 +325,16 @@ extern "C" {
         image_height: usize,
         roi: CGRectRaw,
     ) -> CGRectRaw;
-    fn VNNormalizedFaceBoundingBoxPointForLandmarkPoint(
-        face_landmark_point: VectorFloat2Raw,
+    fn vn_normalized_face_bounding_box_point_for_landmark_point(
+        x: f32,
+        y: f32,
         face_bounding_box: CGRectRaw,
         image_width: usize,
         image_height: usize,
     ) -> CGPointRaw;
-    fn VNImagePointForFaceLandmarkPoint(
-        face_landmark_point: VectorFloat2Raw,
+    fn vn_image_point_for_face_landmark_point(
+        x: f32,
+        y: f32,
         face_bounding_box: CGRectRaw,
         image_width: usize,
         image_height: usize,
@@ -526,11 +522,9 @@ pub fn normalized_face_bounding_box_point_for_landmark_point(
 ) -> VisionPoint {
     // SAFETY: the arguments are plain value types passed by copy; the function is a pure math helper from the Vision framework.
     point_from_raw(unsafe {
-        VNNormalizedFaceBoundingBoxPointForLandmarkPoint(
-            VectorFloat2Raw {
-                x: face_landmark_point.x as f32,
-                y: face_landmark_point.y as f32,
-            },
+        vn_normalized_face_bounding_box_point_for_landmark_point(
+            face_landmark_point.x as f32,
+            face_landmark_point.y as f32,
             rect_to_raw(face_bounding_box),
             image_width,
             image_height,
@@ -548,11 +542,9 @@ pub fn image_point_for_face_landmark_point(
 ) -> VisionPoint {
     // SAFETY: the arguments are plain value types passed by copy; the function is a pure math helper from the Vision framework.
     point_from_raw(unsafe {
-        VNImagePointForFaceLandmarkPoint(
-            VectorFloat2Raw {
-                x: face_landmark_point.x as f32,
-                y: face_landmark_point.y as f32,
-            },
+        vn_image_point_for_face_landmark_point(
+            face_landmark_point.x as f32,
+            face_landmark_point.y as f32,
             rect_to_raw(face_bounding_box),
             image_width,
             image_height,

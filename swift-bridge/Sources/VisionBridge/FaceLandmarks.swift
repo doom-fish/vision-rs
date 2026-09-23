@@ -164,3 +164,26 @@ public func vn_face_landmarks_free(_ array: UnsafeMutableRawPointer?, _ count: I
     }
     typed.deallocate()
 }
+
+@_cdecl("vn_normalized_face_bounding_box_point_for_landmark_point")
+public func vn_normalized_face_bounding_box_point_for_landmark_point(
+    _ x: Float,
+    _ y: Float,
+    _ faceBoundingBox: CGRect,
+    _ imageWidth: Int,
+    _ imageHeight: Int
+) -> CGPoint {
+    VNNormalizedFaceBoundingBoxPointForLandmarkPoint(
+        vector_float2(x, y), faceBoundingBox, imageWidth, imageHeight)
+}
+
+@_cdecl("vn_image_point_for_face_landmark_point")
+public func vn_image_point_for_face_landmark_point(
+    _ x: Float,
+    _ y: Float,
+    _ faceBoundingBox: CGRect,
+    _ imageWidth: Int,
+    _ imageHeight: Int
+) -> CGPoint {
+    VNImagePointForFaceLandmarkPoint(vector_float2(x, y), faceBoundingBox, imageWidth, imageHeight)
+}
