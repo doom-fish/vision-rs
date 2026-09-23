@@ -61,7 +61,7 @@ public func vn_generate_person_segmentation_in_path(
         request.qualityLevel = lvl
     }
     // 8bppONE mask format (kCVPixelFormatType_OneComponent8).
-    request.outputPixelFormat = 0x4f6e6538 // 'One8'
+    request.outputPixelFormat = kCVPixelFormatType_OneComponent8
     do { try handler.perform([request]) } catch {
         outErrorMessage?.pointee = ffiString("person segmentation failed: \(error.localizedDescription)")
         outHasValue.pointee = false

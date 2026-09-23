@@ -4,7 +4,9 @@ use std::fs;
 use std::path::PathBuf;
 
 use apple_vision::recognize_text::_test_helper_render_text_png;
-use apple_vision::segmentation::_test_helper_fill_one8;
+use apple_vision::segmentation::{
+    _test_helper_fill_one8, generate_person_segmentation_in_path, SegmentationQuality,
+};
 use apple_vision::{
     generate_foreground_instance_mask_in_path, generate_scaled_foreground_mask_in_path,
     person_instance_mask, VisionError,
@@ -130,6 +132,30 @@ fn person_instance_mask_reports_errors_and_consistent_masks(
         assert_eq!((mask.width(), mask.height()), (320, 240));
         assert_eq!(mask.bytes_per_row(), mask.width());
         assert_eq!(mask.as_bytes().len(), mask.width() * mask.height());
+    }
+    Ok(())
+}
+
+#[test]
+fn person_segmentation_returns_an_8_bit_mask() -> Result<(), Box<dyn std::error::Error>> {
+    let dir = fixtures_dir()?;
+    let image = dir.join("person-segmentation.png");
+    _test_helper_render_text_png("SEGMENT", 320, 240, &image)?;
+    for quality in [
+        SegmentationQuality::Fast,
+        SegmentationQuality::Balanced,
+        SegmentationQuality::Accurate,
+    ] {
+        let mask = generate_person_segmentation_in_path(&image, quality)?
+            .expect("person segmentation always produces a mask");
+        assert!(mask.width > 0 && mask.height > 0);
+        assert!(
+            mask.bytes_per_row >= mask.width && mask.bytes_per_row < mask.width * 2,
+            "expected one byte per pixel, got {} bytes per row for width {}",
+            mask.bytes_per_row,
+            mask.width
+        );
+        assert_eq!(mask.bytes.len(), mask.height * mask.bytes_per_row);
     }
     Ok(())
 }
