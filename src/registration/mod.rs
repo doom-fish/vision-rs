@@ -53,7 +53,12 @@ pub fn register_translational(
     let mut err: *mut std::ffi::c_char = ptr::null_mut();
     // SAFETY: `tp`, `fp` are valid C strings; `out` and `err` are valid out-params.
     let status = unsafe {
-        ffi::vn_register_translational_in_paths(tp.as_ptr(), fp.as_ptr(), &raw mut out, &raw mut err)
+        ffi::vn_register_translational_in_paths(
+            tp.as_ptr(),
+            fp.as_ptr(),
+            &raw mut out,
+            &raw mut err,
+        )
     };
     if status != ffi::status::OK {
         // SAFETY: `err` is either null or a malloc'd C string from the bridge.

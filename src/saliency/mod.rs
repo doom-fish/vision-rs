@@ -42,7 +42,12 @@ pub fn attention_saliency_in_path(
 
     // SAFETY: all pointer arguments are valid stack locations or null-initialised out-params; strings are valid C strings for the duration of the call.
     let status = unsafe {
-        ffi::vn_attention_saliency_in_path(path_c.as_ptr(), &raw mut array, &raw mut count, &raw mut err_msg)
+        ffi::vn_attention_saliency_in_path(
+            path_c.as_ptr(),
+            &raw mut array,
+            &raw mut count,
+            &raw mut err_msg,
+        )
     };
     if status != ffi::status::OK {
         // SAFETY: the error pointer is either null or a bridge-allocated C string; `from_swift` frees it.

@@ -38,7 +38,12 @@ pub fn objectness_saliency(path: impl AsRef<Path>) -> Result<Vec<ObjectnessRegio
     let mut err: *mut std::ffi::c_char = ptr::null_mut();
     // SAFETY: all pointer arguments are valid stack locations or null-initialised out-params; strings are valid C strings for the duration of the call.
     let status = unsafe {
-        ffi::vn_objectness_saliency_in_path(cpath.as_ptr(), &raw mut rects_ptr, &raw mut count, &raw mut err)
+        ffi::vn_objectness_saliency_in_path(
+            cpath.as_ptr(),
+            &raw mut rects_ptr,
+            &raw mut count,
+            &raw mut err,
+        )
     };
     if status != ffi::status::OK {
         // SAFETY: the error pointer is either null or a bridge-allocated C string; `take_err` copies and frees it.

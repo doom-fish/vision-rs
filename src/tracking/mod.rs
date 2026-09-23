@@ -296,7 +296,11 @@ impl TranslationalImageTracker {
         let mut err: *mut c_char = ptr::null_mut();
         // SAFETY: all pointer arguments are valid stack locations or null-initialised out-params; strings are valid C strings for the duration of the call.
         let status = unsafe {
-            ffi::vn_translational_image_tracker_create(image_c.as_ptr(), &raw mut handle, &raw mut err)
+            ffi::vn_translational_image_tracker_create(
+                image_c.as_ptr(),
+                &raw mut handle,
+                &raw mut err,
+            )
         };
         if status != ffi::status::OK {
             return Err(error_from_status(status, err));
@@ -351,7 +355,11 @@ impl HomographicImageTracker {
         let mut err: *mut c_char = ptr::null_mut();
         // SAFETY: all pointer arguments are valid stack locations or null-initialised out-params; strings are valid C strings for the duration of the call.
         let status = unsafe {
-            ffi::vn_homographic_image_tracker_create(image_c.as_ptr(), &raw mut handle, &raw mut err)
+            ffi::vn_homographic_image_tracker_create(
+                image_c.as_ptr(),
+                &raw mut handle,
+                &raw mut err,
+            )
         };
         if status != ffi::status::OK {
             return Err(error_from_status(status, err));
