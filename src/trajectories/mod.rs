@@ -50,9 +50,9 @@ pub fn detect_trajectories(
         ffi::vn_detect_trajectories_in_path(
             cpath.as_ptr(),
             trajectory_length as isize,
-            &mut traj_ptr,
-            &mut count,
-            &mut err,
+            &raw mut traj_ptr,
+            &raw mut count,
+            &raw mut err,
         )
     };
     if status != ffi::status::OK {

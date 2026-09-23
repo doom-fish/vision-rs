@@ -168,9 +168,9 @@ impl TextRecognizer {
                 path_c.as_ptr(),
                 self.recognition_level.as_raw(),
                 self.uses_language_correction,
-                &mut out_array,
-                &mut out_count,
-                &mut err_msg,
+                &raw mut out_array,
+                &raw mut out_count,
+                &raw mut err_msg,
             )
         };
         if status != ffi::status::OK {
@@ -235,9 +235,9 @@ impl TextRecognizer {
                 pixel_buffer.as_ptr(),
                 self.recognition_level.as_raw(),
                 self.uses_language_correction,
-                &mut out_array,
-                &mut out_count,
-                &mut err_msg,
+                &raw mut out_array,
+                &raw mut out_count,
+                &raw mut err_msg,
             )
         };
         if status != ffi::status::OK {

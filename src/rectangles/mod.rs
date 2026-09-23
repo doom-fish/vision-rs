@@ -72,9 +72,9 @@ pub fn detect_rectangles_in_path(
             options.maximum_aspect_ratio,
             options.minimum_size,
             options.minimum_confidence,
-            &mut out_array,
-            &mut out_count,
-            &mut err_msg,
+            &raw mut out_array,
+            &raw mut out_count,
+            &raw mut err_msg,
         )
     };
     if status != ffi::status::OK {
@@ -109,9 +109,9 @@ pub fn detect_document_segmentation_in_path(
     let status = unsafe {
         ffi::vn_detect_document_segmentation_in_path(
             path_c.as_ptr(),
-            &mut out_array,
-            &mut out_count,
-            &mut err_msg,
+            &raw mut out_array,
+            &raw mut out_count,
+            &raw mut err_msg,
         )
     };
     if status != ffi::status::OK {

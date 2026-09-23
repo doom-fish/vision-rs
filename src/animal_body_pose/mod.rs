@@ -126,9 +126,9 @@ pub fn detect_animal_body_pose(path: impl AsRef<Path>) -> Result<Vec<AnimalJoint
     let status = unsafe {
         ffi::vn_detect_animal_body_pose_in_path(
             cpath.as_ptr(),
-            &mut joints_ptr,
-            &mut count,
-            &mut err,
+            &raw mut joints_ptr,
+            &raw mut count,
+            &raw mut err,
         )
     };
     if status != ffi::status::OK {

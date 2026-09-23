@@ -256,9 +256,9 @@ impl ImageRequestHandler {
                 request.uses_cpu_only,
                 request.revision.unwrap_or_default(),
                 request.revision.is_some(),
-                &mut out_array,
-                &mut out_count,
-                &mut err_msg,
+                &raw mut out_array,
+                &raw mut out_count,
+                &raw mut err_msg,
             )
         };
         if status != ffi::status::OK {
@@ -285,7 +285,7 @@ impl SequenceRequestHandler {
         let mut handle: *mut c_void = ptr::null_mut();
         let mut err_msg: *mut c_char = ptr::null_mut();
         // SAFETY: all pointer arguments are valid stack locations or bridge-owned handles; strings are valid C strings for the duration of the call.
-        let status = unsafe { ffi::vn_sequence_request_handler_create(&mut handle, &mut err_msg) };
+        let status = unsafe { ffi::vn_sequence_request_handler_create(&raw mut handle, &raw mut err_msg) };
         if status != ffi::status::OK {
             // SAFETY: the error pointer is either null or a bridge-allocated C string; `from_swift` frees it.
             return Err(unsafe { from_swift(status, err_msg) });
@@ -326,9 +326,9 @@ impl SequenceRequestHandler {
                 request.uses_cpu_only,
                 request.revision.unwrap_or_default(),
                 request.revision.is_some(),
-                &mut out_array,
-                &mut out_count,
-                &mut err_msg,
+                &raw mut out_array,
+                &raw mut out_count,
+                &raw mut err_msg,
             )
         };
         if status != ffi::status::OK {
@@ -498,9 +498,9 @@ impl VideoProcessor {
                 request.revision.is_some(),
                 cadence_kind,
                 cadence_value,
-                &mut out_array,
-                &mut out_count,
-                &mut err_msg,
+                &raw mut out_array,
+                &raw mut out_count,
+                &raw mut err_msg,
             )
         };
         if status != ffi::status::OK {

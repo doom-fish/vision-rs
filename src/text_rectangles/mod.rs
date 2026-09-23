@@ -118,9 +118,9 @@ impl TextRectanglesRequest {
                 self.image_based.uses_cpu_only(),
                 self.image_based.revision().unwrap_or_default(),
                 self.image_based.revision().is_some(),
-                &mut observations_ptr,
-                &mut count,
-                &mut err,
+                &raw mut observations_ptr,
+                &raw mut count,
+                &raw mut err,
             )
         };
         if status != ffi::status::OK {

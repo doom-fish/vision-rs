@@ -38,9 +38,9 @@ pub fn classify_image_in_path(path: impl AsRef<Path>) -> Result<Vec<Classificati
     let status = unsafe {
         ffi::vn_classify_image_in_path(
             path_c.as_ptr(),
-            &mut out_array,
-            &mut out_count,
-            &mut err_msg,
+            &raw mut out_array,
+            &raw mut out_count,
+            &raw mut err_msg,
         )
     };
     if status != ffi::status::OK {

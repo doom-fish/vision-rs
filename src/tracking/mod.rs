@@ -88,8 +88,8 @@ impl ObjectTracker {
             ffi::vn_object_tracker_create(
                 image_c.as_ptr(),
                 ptr::addr_of_mut!(raw_bbox).cast(),
-                &mut handle,
-                &mut err,
+                &raw mut handle,
+                &raw mut err,
             )
         };
         if status != ffi::status::OK {
@@ -123,7 +123,7 @@ impl ObjectTracker {
                 self.handle,
                 image_c.as_ptr(),
                 ptr::addr_of_mut!(raw_bbox).cast(),
-                &mut err,
+                &raw mut err,
             )
         };
         if status != ffi::status::OK {
@@ -159,8 +159,8 @@ impl RectangleTracker {
             ffi::vn_rectangle_tracker_create(
                 image_c.as_ptr(),
                 ptr::addr_of_mut!(raw).cast(),
-                &mut handle,
-                &mut err,
+                &raw mut handle,
+                &raw mut err,
             )
         };
         if status != ffi::status::OK {
@@ -204,7 +204,7 @@ impl RectangleTracker {
                 self.handle,
                 image_c.as_ptr(),
                 ptr::addr_of_mut!(raw).cast(),
-                &mut err,
+                &raw mut err,
             )
         };
         if status != ffi::status::OK {
@@ -239,7 +239,7 @@ impl OpticalFlowTracker {
         let mut err: *mut c_char = ptr::null_mut();
         let status =
             // SAFETY: all pointer arguments are valid stack locations or null-initialised out-params; strings are valid C strings for the duration of the call.
-            unsafe { ffi::vn_optical_flow_tracker_create(image_c.as_ptr(), &mut handle, &mut err) };
+            unsafe { ffi::vn_optical_flow_tracker_create(image_c.as_ptr(), &raw mut handle, &raw mut err) };
         if status != ffi::status::OK {
             return Err(error_from_status(status, err));
         }
@@ -269,7 +269,7 @@ impl OpticalFlowTracker {
                 self.handle,
                 image_c.as_ptr(),
                 ptr::addr_of_mut!(raw).cast(),
-                &mut err,
+                &raw mut err,
             )
         };
         if status != ffi::status::OK {
@@ -296,7 +296,7 @@ impl TranslationalImageTracker {
         let mut err: *mut c_char = ptr::null_mut();
         // SAFETY: all pointer arguments are valid stack locations or null-initialised out-params; strings are valid C strings for the duration of the call.
         let status = unsafe {
-            ffi::vn_translational_image_tracker_create(image_c.as_ptr(), &mut handle, &mut err)
+            ffi::vn_translational_image_tracker_create(image_c.as_ptr(), &raw mut handle, &raw mut err)
         };
         if status != ffi::status::OK {
             return Err(error_from_status(status, err));
@@ -324,7 +324,7 @@ impl TranslationalImageTracker {
                 self.handle,
                 image_c.as_ptr(),
                 ptr::addr_of_mut!(raw).cast(),
-                &mut err,
+                &raw mut err,
             )
         };
         if status != ffi::status::OK {
@@ -351,7 +351,7 @@ impl HomographicImageTracker {
         let mut err: *mut c_char = ptr::null_mut();
         // SAFETY: all pointer arguments are valid stack locations or null-initialised out-params; strings are valid C strings for the duration of the call.
         let status = unsafe {
-            ffi::vn_homographic_image_tracker_create(image_c.as_ptr(), &mut handle, &mut err)
+            ffi::vn_homographic_image_tracker_create(image_c.as_ptr(), &raw mut handle, &raw mut err)
         };
         if status != ffi::status::OK {
             return Err(error_from_status(status, err));
@@ -390,7 +390,7 @@ impl HomographicImageTracker {
                 self.handle,
                 image_c.as_ptr(),
                 ptr::addr_of_mut!(raw).cast(),
-                &mut err,
+                &raw mut err,
             )
         };
         if status != ffi::status::OK {

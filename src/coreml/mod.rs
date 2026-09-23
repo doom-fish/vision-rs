@@ -176,9 +176,9 @@ impl CoreMLRequest {
                 self.image_based.uses_cpu_only(),
                 self.image_based.revision().unwrap_or_default(),
                 self.image_based.revision().is_some(),
-                &mut out_array,
-                &mut out_count,
-                &mut err_msg,
+                &raw mut out_array,
+                &raw mut out_count,
+                &raw mut err_msg,
             )
         };
         if status != ffi::status::OK {
@@ -246,9 +246,9 @@ impl CoreMLRequest {
                 self.image_based.uses_cpu_only(),
                 self.image_based.revision().unwrap_or_default(),
                 self.image_based.revision().is_some(),
-                &mut raw,
-                &mut has_value,
-                &mut err_msg,
+                &raw mut raw,
+                &raw mut has_value,
+                &raw mut err_msg,
             )
         };
         if status != ffi::status::OK {
@@ -302,7 +302,7 @@ impl CoreMLRequest {
             },
         };
         // SAFETY: `raw` was populated by the bridge and has not been freed yet; unique free site.
-        unsafe { ffi::vn_coreml_feature_value_free(&mut raw) };
+        unsafe { ffi::vn_coreml_feature_value_free(&raw mut raw) };
         Ok(Some(observation))
     }
 }

@@ -283,9 +283,9 @@ pub fn detect_human_body_recognized_points_3d(
     let status = unsafe {
         ffi::vn_detect_human_body_pose_3d_in_path(
             cpath.as_ptr(),
-            &mut joints_ptr,
-            &mut count,
-            &mut err,
+            &raw mut joints_ptr,
+            &raw mut count,
+            &raw mut err,
         )
     };
     if status != ffi::status::OK {

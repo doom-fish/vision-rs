@@ -72,11 +72,11 @@ pub fn person_instance_mask(
     let status = unsafe {
         ffi::vn_person_instance_mask_in_path(
             cpath.as_ptr(),
-            &mut w,
-            &mut h,
-            &mut bpr,
-            &mut data,
-            &mut err,
+            &raw mut w,
+            &raw mut h,
+            &raw mut bpr,
+            &raw mut data,
+            &raw mut err,
         )
     };
     if status != ffi::status::OK {

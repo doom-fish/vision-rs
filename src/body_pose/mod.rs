@@ -306,9 +306,9 @@ pub(crate) unsafe fn run(
     let mut err_msg: *mut c_char = ptr::null_mut();
     let status = f(
         path_c.as_ptr(),
-        &mut out_array,
-        &mut out_count,
-        &mut err_msg,
+        &raw mut out_array,
+        &raw mut out_count,
+        &raw mut err_msg,
     );
     if status != ffi::status::OK {
         return Err(from_swift(status, err_msg));

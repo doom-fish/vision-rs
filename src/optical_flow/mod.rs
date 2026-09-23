@@ -67,9 +67,9 @@ pub fn generate_optical_flow_in_paths(
             a_c.as_ptr(),
             b_c.as_ptr(),
             accuracy as i32,
-            &mut raw,
-            &mut has_value,
-            &mut err_msg,
+            &raw mut raw,
+            &raw mut has_value,
+            &raw mut err_msg,
         )
     };
     if status != ffi::status::OK {
@@ -84,7 +84,7 @@ pub fn generate_optical_flow_in_paths(
     let slice = unsafe { core::slice::from_raw_parts(raw.bytes.cast::<u8>(), len) };
     let bytes = slice.to_vec();
     // SAFETY: `raw` was populated by the bridge and has not been freed yet; unique free site.
-    unsafe { ffi::vn_segmentation_mask_free(&mut raw) };
+    unsafe { ffi::vn_segmentation_mask_free(&raw mut raw) };
     Ok(Some(SegmentationMask {
         width: raw.width,
         height: raw.height,

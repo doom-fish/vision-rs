@@ -84,9 +84,9 @@ pub fn detect_contours_observation_in_path(
             path_c.as_ptr(),
             options.contrast_adjustment,
             options.detects_dark_on_light,
-            &mut out_array,
-            &mut out_count,
-            &mut err_msg,
+            &raw mut out_array,
+            &raw mut out_count,
+            &raw mut err_msg,
         )
     };
     if status != ffi::status::OK {

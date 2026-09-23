@@ -228,9 +228,9 @@ pub fn detect_human_hand_pose_in_path(
         ffi::vn_detect_human_hand_pose_in_path(
             path_c.as_ptr(),
             max_hands,
-            &mut out_array,
-            &mut out_count,
-            &mut err_msg,
+            &raw mut out_array,
+            &raw mut out_count,
+            &raw mut err_msg,
         )
     };
     if status != ffi::status::OK {

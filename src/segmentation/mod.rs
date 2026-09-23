@@ -115,9 +115,9 @@ pub fn generate_person_segmentation_in_path(
         ffi::vn_generate_person_segmentation_in_path(
             path_c.as_ptr(),
             quality as i32,
-            &mut raw,
-            &mut has_value,
-            &mut err_msg,
+            &raw mut raw,
+            &raw mut has_value,
+            &raw mut err_msg,
         )
     };
     if status != ffi::status::OK {
@@ -160,10 +160,10 @@ pub fn generate_foreground_instance_mask_in_path(
     let status = unsafe {
         ffi::vn_generate_foreground_instance_mask_in_path(
             path_c.as_ptr(),
-            &mut raw,
-            &mut instance_count,
-            &mut has_value,
-            &mut err_msg,
+            &raw mut raw,
+            &raw mut instance_count,
+            &raw mut has_value,
+            &raw mut err_msg,
         )
     };
     if status != ffi::status::OK {
@@ -219,11 +219,11 @@ pub fn generate_scaled_foreground_mask_in_path(
     let status = unsafe {
         ffi::vn_scaled_foreground_mask_begin(
             path_c.as_ptr(),
-            &mut has_value,
-            &mut width,
-            &mut height,
-            &mut handle,
-            &mut err_msg,
+            &raw mut has_value,
+            &raw mut width,
+            &raw mut height,
+            &raw mut handle,
+            &raw mut err_msg,
         )
     };
     if status != ffi::status::OK {
