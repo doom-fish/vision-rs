@@ -2,7 +2,7 @@
 
 Safe Rust bindings for Apple's [Vision](https://developer.apple.com/documentation/vision) framework — on-device OCR, object detection, face landmarks, and other computer vision tasks on macOS.
 
-> **Status:** v0.16.7 wraps the Objective-C Vision request surface and a Tier-1 `async_api` for one-shot OCR / face / barcode / segmentation / Core ML / pose / trajectory workflows. `COVERAGE.md` and `COVERAGE_AUDIT.md` track the `VN*` Objective-C API only; the Swift-only Vision API, including the macOS 26 `RecognizeDocumentsRequest` and `DetectLensSmudgeRequest`, is not wrapped.
+> **Status:** v0.17.0 wraps the Objective-C Vision request surface and a Tier-1 `async_api` for one-shot OCR / face / barcode / segmentation / Core ML / pose / trajectory workflows. `COVERAGE.md` and `COVERAGE_AUDIT.md` track the `VN*` Objective-C API only; the Swift-only Vision API, including the macOS 26 `RecognizeDocumentsRequest` and `DetectLensSmudgeRequest`, is not wrapped.
 
 ## Requirements
 
@@ -39,14 +39,14 @@ screencapturekit-rs / capture ──► IOSurface / PNG ──► vision ──�
 
 ## Feature flags
 
-All request-type modules can be enabled independently, and the default feature set still enables the full Vision surface. v0.16.7 also carries an optional `async` feature for executor-agnostic `Future` wrappers around the Tier-1 one-shot request surface.
+All request-type modules can be enabled independently, and the default feature set still enables the full Vision surface. v0.17.0 also carries an optional `async` feature for executor-agnostic `Future` wrappers around the Tier-1 one-shot request surface.
 
 ## Async API
 
 Enable `async` plus the request features you need:
 
 ```toml
-apple-vision = { version = "0.16.7", features = ["async", "recognize_text"] }
+apple-vision = { version = "0.17.0", features = ["async", "recognize_text"] }
 ```
 
 ```rust,ignore

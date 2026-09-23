@@ -1,5 +1,52 @@
 # Changelog
 
+All notable changes to this project will be documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [0.17.0] - Unreleased
+
+### Security
+
+- `PersonInstanceMask` exposed `width`, `height` and `bytes_per_row` as `pub` fields that the safe `as_bytes()` trusted in `from_raw_parts`, so changing them read out of bounds from safe code. The mask now owns a `Vec<u8>` behind private fields.
+
+### Fixed
+
+- `person_instance_mask` copied the `OneComponent32Float` buffer from `generateScaledMaskForImage` into its 8-bit mask type, and `try?` turned request failures into `Ok(None)`. It now converts to 8-bit alpha through the same single-copy path as `generate_scaled_foreground_mask_in_path` and reports failures as errors.
+- The float-to-8-bit mask conversion read any non-8-bit buffer as `Float32` (over-reading half-float buffers), trapped on NaN, and returned an all-zero mask when the buffer could not be locked. Half floats are now converted, other formats rejected, NaN maps to 0, and lock, stride and size failures are errors.
+- `image_point_for_face_landmark_point` and `normalized_face_bounding_box_point_for_landmark_point` declared `vector_float2` as a struct of two `f32`s, which Apple silicon passes in two registers instead of one vector register, so both returned garbage. They now go through Swift shims that pass a real `vector_float2`.
+- Person segmentation requested the non-existent pixel format `'One8'` and therefore always failed with "Unsupported output pixel format"; it now requests `kCVPixelFormatType_OneComponent8`.
+- Path-based requests ignored the image's EXIF orientation, so portrait phone photos were analysed sideways. The orientation is now passed to every image request handler, sequence handler, targeted request and tracker.
+- `CoreMLModel` recompiled the model on every request (about 0.6 s each) and left a `.mlmodelc` in `$TMPDIR` every time; same-named models also overwrote each other's compiled output. Models now compile once, are cached across clones, and the compiled output is deleted when the last clone is dropped.
+- Async requests spawned an OS thread per call and never resolved if the work panicked; text, face, barcode and segmentation futures flattened every error to `RequestFailed`, and async person segmentation failed where the sync call returned `Ok(None)`. Futures now run the synchronous request on the libdispatch global queue, resolve a panic as an error, and return exactly what the sync API returns.
+- `generate_optical_flow_in_paths` returned the two-float flow buffer inside `SegmentationMask`, a type documented as an 8-bit mask.
+- The optical-flow module doc claimed trajectory detection was deferred.
+- `cargo clippy -- -D warnings` failed on the current toolchain (`borrow_as_ptr`).
+
+### Changed
+
+- **Breaking:** `PersonInstanceMask` has private fields; use `width()`, `height()`, `bytes_per_row()` and `as_bytes()`.
+- **Breaking:** `generate_optical_flow_in_paths` returns `Result<Option<OpticalFlow>, VisionError>`.
+- **Breaking:** `PersonSegmentationFuture` resolves to `Result<Option<SegmentationMask>, VisionError>`, like `generate_person_segmentation_in_path`.
+- **Breaking:** the hidden `_test_helper_scaled_mask_to_one8` is replaced by `_test_helper_fill_one8`, which takes a pixel format and returns a `Result`.
+- **Breaking:** `ffi`: `vn_person_instance_mask_in_path` and `vn_mask_buffer_free` are replaced by `vn_person_instance_mask_begin`; `vn_scaled_foreground_mask_finish` returns a status; `vn_image_request_handler_perform_text_request` takes an orientation; the Core ML exports take a model handle from `vn_coreml_model_load`.
+- Async futures run on the libdispatch global queue instead of dedicated threads and Swift dispatch thunks.
+- The apple-cf requirement is `>=0.11, <0.12`, the doom-fish-utils requirement is `>=0.4.1, <0.5`, and `rust-version` is 1.82.
+
+### Added
+
+- `generate_scaled_foreground_mask_in_path`: a soft 8-bit foreground mask at source resolution (`generateScaledMaskForImage(forInstances:from:)` with all instances).
+- `ImageOrientation` and `ImageRequestHandler::{with_orientation, orientation}` to override the file's EXIF orientation.
+- `OpticalFlow` (`vectors()`, `vector_at(x, y)`) and `CoreMLModel::is_loaded()`.
+- Compile-time size and alignment assertions for every `#[repr(C)]` struct shared with Swift, plus `ffi::verify_ffi_layout`.
+- Regression tests for the mask conversions, the landmark helpers, person segmentation, EXIF orientation, Core ML caching (with two small CreateML fixtures), async parity and panics, and optical flow.
+
+### Removed
+
+- The Swift async thunks (`vn_*_async`), `ffi::AsyncArrayResultRaw`, `ffi::AsyncSegResultRaw`, `vn_coreml_classify_in_path`, and the empty `VisionBridge.h` header.
+- The content of `COVERAGE_AUDIT_V2.md`, whose tables listed symbols that do not exist in the SDK; it is now a withdrawal note.
+
 ## [0.16.7] - 2026-05-20
 
 - Phase 32 completeness + async sweep.
@@ -21,8 +68,6 @@
 ## [0.16.3] - 2026-05-18
 
 - Widen apple-cf version bound to `<0.10` so 0.9.x resolves.
-
-All notable changes to this project will be documented in this file.
 
 ## [0.16.2] - 2026-06-16
 
