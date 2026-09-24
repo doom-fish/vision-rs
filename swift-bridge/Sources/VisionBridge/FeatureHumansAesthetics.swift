@@ -43,11 +43,29 @@ public func vn_generate_image_feature_print_in_path(
         outTyped.pointee = VNFeaturePrintRaw(element_type: 0, element_count: 0, bytes: nil)
         return VN_OK
     }
+    let elementType: Int32
+    let elementWidth: Int
+    switch obs.elementType {
+    case .float:
+        elementType = 1
+        elementWidth = MemoryLayout<Float>.size
+    case .double:
+        elementType = 2
+        elementWidth = MemoryLayout<Double>.size
+    default:
+        outErrorMessage?.pointee = ffiString("feature print has unsupported element type \(obs.elementType.rawValue)")
+        return VN_REQUEST_FAILED
+    }
     let data = obs.data
+    let (byteCount, overflow) = obs.elementCount.multipliedReportingOverflow(by: elementWidth)
+    guard !overflow, byteCount == data.count else {
+        outErrorMessage?.pointee = ffiString("feature print holds \(data.count) bytes for \(obs.elementCount) elements")
+        return VN_REQUEST_FAILED
+    }
     let bytes = UnsafeMutableRawPointer.allocate(byteCount: data.count, alignment: 8)
     data.copyBytes(to: bytes.assumingMemoryBound(to: UInt8.self), count: data.count)
     outTyped.pointee = VNFeaturePrintRaw(
-        element_type: Int32(obs.elementType.rawValue),
+        element_type: elementType,
         element_count: obs.elementCount,
         bytes: bytes
     )

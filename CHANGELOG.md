@@ -23,6 +23,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `generate_optical_flow_in_paths` returned the two-float flow buffer inside `SegmentationMask`, a type documented as an 8-bit mask.
 - The optical-flow module doc claimed trajectory detection was deferred.
 - `cargo clippy -- -D warnings` failed on the current toolchain (`borrow_as_ptr`).
+- `generate_image_feature_print_in_path` copied `element_count` times the element size out of a buffer the bridge had sized from the observation's `data`, without checking that the two agree, converted the element type with a trapping `Int32(_:)`, and returned an empty print for an unknown element type. The bridge now rejects prints whose data size does not match, unknown element types are errors, and an empty print no longer leaks its buffer.
+- `FeaturePrint::l2_distance` returned `Ok(0.0)` for an unknown element type and a partial distance when `data` did not match `element_count`; it now returns `InvalidArgument`, and `as_f32` and `as_f64` return `None` for such prints instead of decoding a prefix.
 
 ### Changed
 
@@ -41,6 +43,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `OpticalFlow` (`vectors()`, `vector_at(x, y)`) and `CoreMLModel::is_loaded()`.
 - Compile-time size and alignment assertions for every `#[repr(C)]` struct shared with Swift, plus `ffi::verify_ffi_layout`.
 - Regression tests for the mask conversions, the landmark helpers, person segmentation, EXIF orientation, Core ML caching (with two small CreateML fixtures), async parity and panics, and optical flow.
+- Regression tests for feature-print decoding and distances.
 
 ### Removed
 

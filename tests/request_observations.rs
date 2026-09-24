@@ -34,6 +34,22 @@ fn fixtures_dir() -> Result<PathBuf, Box<dyn std::error::Error>> {
 }
 
 #[test]
+fn feature_prints_hold_one_value_per_element() -> Result<(), Box<dyn std::error::Error>> {
+    let image = fixtures_dir()?.join("feature-print.png");
+    _test_helper_render_text_png("PRINT", 640, 360, &image)?;
+    let print =
+        apple_vision::generate_image_feature_print_in_path(&image)?.expect("a feature print");
+    let decoded = match print.element_type {
+        1 => print.as_f32().map(|values| values.len()),
+        2 => print.as_f64().map(|values| values.len()),
+        _ => None,
+    };
+    assert_eq!(decoded, Some(print.element_count));
+    assert!(print.l2_distance(&print)?.abs() < f64::EPSILON);
+    Ok(())
+}
+
+#[test]
 #[allow(clippy::too_many_lines)]
 fn request_and_observation_wrappers_smoke() -> Result<(), Box<dyn std::error::Error>> {
     let dir = fixtures_dir()?;
