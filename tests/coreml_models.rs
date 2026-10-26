@@ -75,7 +75,7 @@ fn models_compile_once_and_remove_their_compiled_output() -> Result<(), Box<dyn 
         assert!(results
             .iter()
             .all(|result| result.identifier == "red" || result.identifier == "blue"));
-        assert!(!results.is_empty());
+        assert_ne!(results.as_slice(), []);
     }
 
     let created: Vec<PathBuf> = owned_compile_dirs()

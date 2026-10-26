@@ -49,8 +49,8 @@ impl HorizonObservation {
             b: sin_theta,
             c: -sin_theta,
             d: cos_theta,
-            tx: center_x - (center_x * cos_theta) + (center_y * sin_theta),
-            ty: center_y - (center_x * sin_theta) - (center_y * cos_theta),
+            tx: center_y.mul_add(sin_theta, center_x.mul_add(-cos_theta, center_x)),
+            ty: center_y.mul_add(-cos_theta, center_x.mul_add(-sin_theta, center_y)),
         }
     }
 }

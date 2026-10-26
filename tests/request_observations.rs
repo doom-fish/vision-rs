@@ -122,7 +122,7 @@ fn request_and_observation_wrappers_smoke() -> Result<(), Box<dyn std::error::Er
         .with_image_based_request(image_based.clone())
         .with_report_character_boxes(true);
     let text_observations = request.perform(&image)?;
-    assert!(!text_observations.is_empty());
+    assert_ne!(text_observations, [] as [apple_vision::TextObservation; 0]);
 
     let contours = detect_contours_observation_in_path(&image, ContourOptions::default())?;
     assert_eq!(

@@ -54,7 +54,10 @@ fn request_handlers_and_video_processor_smoke() -> Result<(), Box<dyn std::error
     );
 
     let image_observations = ImageRequestHandler::new(&image_a).perform(&request)?;
-    assert!(!image_observations.is_empty());
+    assert_ne!(
+        image_observations,
+        [] as [apple_vision::RecognizedTextObservation; 0]
+    );
     assert!(contains_text(&image_observations, "VISION"));
     assert!(image_observations
         .iter()
@@ -86,7 +89,10 @@ fn request_handlers_and_video_processor_smoke() -> Result<(), Box<dyn std::error
         VideoProcessingOptions::new()
             .with_video_processor_cadence(VideoProcessorCadence::frame_rate(1)),
     )?;
-    assert!(!video_observations.is_empty());
+    assert_ne!(
+        video_observations,
+        [] as [apple_vision::RecognizedTextObservation; 0]
+    );
     assert!(video_observations
         .iter()
         .all(|observation| !observation.observation.uuid.is_empty()));
