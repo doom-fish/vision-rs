@@ -205,6 +205,60 @@ Swift bridge: existing `Vision.swift` helpers (`loadCGImage`,
 `MissingRequests.swift` file can reuse them. New example
 `04_v013_missing_requests` exercises all 8 surfaces on M4 Max.
 
+## [0.12.0] - 2026-05-16
+
+### Added
+
+- Add `VNCoreMLRequest` support.
+
+## [0.11.0] - 2026-05-16
+
+### Added
+
+- Add optical flow through `VNGenerateOpticalFlowRequest`.
+
+## [0.10.0] - 2026-05-16
+
+### Added
+
+- Add person and foreground-instance segmentation masks.
+
+## [0.9.0] - 2026-05-16
+
+### Added
+
+- Add aesthetics scores and face capture quality.
+
+## [0.8.0] - 2026-05-16
+
+### Added
+
+- Add image classification, rectangles, document segmentation, horizon detection, feature prints and human detection.
+
+## [0.7.0] - 2026-05-16
+
+### Added
+
+- Add body pose, hand pose, contours and animal recognition.
+
+## [0.6.0] - 2026-05-16
+
+### Added
+
+- Add face landmarks through `VNDetectFaceLandmarksRequest`.
+
+## [0.5.0] - 2026-05-16
+
+### Added
+
+- Add attention-based saliency detection.
+
+## [0.4.0] - 2026-05-16
+
+### Added
+
+- Add `VNDetectBarcodesRequest`.
+
 ## [0.3.0] - Unreleased
 
 ### Added
