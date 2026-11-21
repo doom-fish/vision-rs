@@ -5,6 +5,7 @@ import AppKit
 import CoreGraphics
 import CoreMedia
 import CoreVideo
+import Darwin
 import Foundation
 import Vision
 
@@ -210,12 +211,17 @@ public func vn_test_helper_render_text_video(
     let writerFPS = max(Int(fps), 1)
     let segmentFrames = max(Int(framesPerText), 1)
 
-    if FileManager.default.fileExists(atPath: url.path) {
-        do {
-            try FileManager.default.removeItem(at: url)
-        } catch {
-            return VN_UNKNOWN
-        }
+    var isDirectory: ObjCBool = false
+    if FileManager.default.fileExists(atPath: url.path, isDirectory: &isDirectory), isDirectory.boolValue {
+        return VN_UNKNOWN
+    }
+    guard let staging = try? FileManager.default.url(
+        for: .itemReplacementDirectory, in: .userDomainMask, appropriateFor: url, create: true
+    ) else { return VN_UNKNOWN }
+    let movie = staging.appendingPathComponent("video.mov")
+    defer {
+        _ = unlink(movie.path)
+        _ = rmdir(staging.path)
     }
 
     let settings: [String: Any] = [
@@ -224,7 +230,7 @@ public func vn_test_helper_render_text_video(
         AVVideoHeightKey: writerHeight,
     ]
 
-    guard let writer = try? AVAssetWriter(outputURL: url, fileType: .mov) else {
+    guard let writer = try? AVAssetWriter(outputURL: movie, fileType: .mov) else {
         return VN_UNKNOWN
     }
     let input = AVAssetWriterInput(mediaType: .video, outputSettings: settings)
@@ -270,5 +276,5 @@ public func vn_test_helper_render_text_video(
         finished.signal()
     }
     finished.wait()
-    return writer.status == .completed ? VN_OK : VN_UNKNOWN
+    return writer.status == .completed && rename(movie.path, url.path) == 0 ? VN_OK : VN_UNKNOWN
 }

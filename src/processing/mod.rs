@@ -641,8 +641,7 @@ pub fn _test_helper_render_text_video(
         CString::new(first_text).map_err(|err| VisionError::InvalidArgument(err.to_string()))?;
     let second_c =
         CString::new(second_text).map_err(|err| VisionError::InvalidArgument(err.to_string()))?;
-    let path_c = CString::new(path.to_string_lossy().as_ref())
-        .map_err(|err| VisionError::InvalidArgument(err.to_string()))?;
+    let path_c = path_to_cstring(path, "video output path")?;
     // SAFETY: all pointer arguments are valid stack locations or bridge-owned handles; strings are valid C strings for the duration of the call.
     let status = unsafe {
         ffi::vn_test_helper_render_text_video(
